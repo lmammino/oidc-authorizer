@@ -18,11 +18,15 @@ impl From<JwkSet> for KeysMap {
         let mut map = HashMap::with_capacity(jwks.keys.len());
         for key in jwks.keys {
             if let Some(key_id) = &key.common.key_id {
-                map.insert(
-                    key_id.clone(),
-                    // TODO: handle possile errors in creating the decoding key from jwk
-                    DecodingKey::from_jwk(&key).expect("Failed to create a decoding key from JWK"),
-                );
+                match DecodingKey::from_jwk(&key) {
+                    Ok(k) => {
+                        map.insert(key_id.clone(), k);
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to create a decoding key from JWK: {}. This key won't be indexed and it will be ignored", e);
+                        continue;
+                    }
+                }
             }
         }
 

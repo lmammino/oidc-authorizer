@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
@@ -39,10 +40,22 @@ pub struct TokenAuthorizerResponse {
 }
 
 impl TokenAuthorizerResponse {
-    pub fn allow(token: &str, principal_id: &str, resource: &str) -> Self {
+    pub fn allow(
+        raw_token: &str,
+        principal_id: &str,
+        resource: &str,
+        token_claims: &Value,
+    ) -> Self {
+        let mut context = HashMap::new();
+        if let Some(claims) = token_claims.as_object() {
+            for (key, value) in claims.iter() {
+                context.insert(format!("jwt_claim_{}", key), value.to_string());
+            }
+        }
+
         Self {
-            context: HashMap::new(), // TODO: provide claims to the downstream lambdas
-            usage_identifier_key: token.to_string(),
+            context,
+            usage_identifier_key: raw_token.to_string(),
             principal_id: principal_id.to_string(),
             policy_document: PolicyDocument {
                 version: "2012-10-17".to_string(),
@@ -56,7 +69,6 @@ impl TokenAuthorizerResponse {
     }
 
     pub fn deny(token: &str) -> Self {
-        // TODO: see if can use context for specifying the reject reason
         Self {
             context: HashMap::new(),
             usage_identifier_key: token.to_string(),

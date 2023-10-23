@@ -148,6 +148,7 @@ impl Service<LambdaEvent<TokenAuthorizerEvent>> for Handler {
                 token,
                 &principal_id,
                 &event.method_arn,
+                &token_payload.claims,
             ))
         })
     }

@@ -1,6 +1,6 @@
 # oidc-authorizer
 
-A high-performance Lambda authorizer for API Gateway that can validate OIDC tokens.
+A high-performance token-based API Gateway authorizer Lambda that can validate OIDC-issued JWT tokens.
 
 
 ⚠️ WIP

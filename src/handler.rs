@@ -1,8 +1,9 @@
 use crate::{
-    accepted_algorithms::{self, AcceptedAlgorithms},
+    accepted_algorithms::AcceptedAlgorithms,
     accepted_claims::AcceptedClaims,
     keys_cache::KeysCache,
     models::{TokenAuthorizerEvent, TokenAuthorizerResponse},
+    principalid_claims::PrincipalIDClaims,
 };
 use jsonwebtoken::{decode, decode_header, Validation};
 use lambda_runtime::{Error, LambdaEvent, Service};
@@ -17,15 +18,17 @@ use tokio::sync::RwLock;
 
 pub struct Handler {
     pub keys_cache: Arc<RwLock<KeysCache>>,
-    pub accepted_issuers: AcceptedClaims,
-    pub accepted_audiences: AcceptedClaims,
-    pub accepted_signing_algorithms: AcceptedAlgorithms,
+    pub principal_id_claims: Arc<PrincipalIDClaims>,
+    pub accepted_issuers: Arc<AcceptedClaims>,
+    pub accepted_audiences: Arc<AcceptedClaims>,
+    pub accepted_signing_algorithms: Arc<AcceptedAlgorithms>,
 }
 
 impl Handler {
     pub fn new(
         jwks_uri: Url,
         min_refresh_rate: chrono::Duration,
+        principal_id_claims: PrincipalIDClaims,
         accepted_issuers: AcceptedClaims,
         accepted_audiences: AcceptedClaims,
         accepted_algorithms: AcceptedAlgorithms,
@@ -33,9 +36,10 @@ impl Handler {
         let keys_cache = KeysCache::new(jwks_uri, min_refresh_rate);
         Self {
             keys_cache: Arc::new(RwLock::new(keys_cache)),
-            accepted_issuers,
-            accepted_audiences,
-            accepted_signing_algorithms: accepted_algorithms,
+            principal_id_claims: Arc::new(principal_id_claims),
+            accepted_issuers: Arc::new(accepted_issuers),
+            accepted_audiences: Arc::new(accepted_audiences),
+            accepted_signing_algorithms: Arc::new(accepted_algorithms),
         }
     }
 }
@@ -58,6 +62,7 @@ impl Service<LambdaEvent<TokenAuthorizerEvent>> for Handler {
 
     fn call(&mut self, req: LambdaEvent<TokenAuthorizerEvent>) -> Self::Future {
         let jwks_cache = self.keys_cache.clone();
+        let principal_id_claims = self.principal_id_claims.clone();
 
         Box::pin(async move {
             // TODO: logging
@@ -85,9 +90,16 @@ impl Service<LambdaEvent<TokenAuthorizerEvent>> for Handler {
             )?;
             // TODO: validate issuer, audience and other claims
 
+            let principal_id =
+                principal_id_claims.get_principal_id_from_claims(token_payload.claims.clone());
+
             println!("{:?}", token);
 
-            Ok(TokenAuthorizerResponse::allow(&event.method_arn))
+            Ok(TokenAuthorizerResponse::allow(
+                token,
+                &principal_id,
+                &event.method_arn,
+            ))
         })
     }
 }

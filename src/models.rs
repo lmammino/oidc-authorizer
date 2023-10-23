@@ -39,11 +39,11 @@ pub struct TokenAuthorizerResponse {
 }
 
 impl TokenAuthorizerResponse {
-    pub fn allow(resource: &str) -> Self {
+    pub fn allow(token: &str, principal_id: &str, resource: &str) -> Self {
         Self {
-            context: HashMap::new(),              // TODO: verify if needed
-            usage_identifier_key: "".to_string(), // TODO: verify if needed
-            principal_id: "api_request".to_string(),
+            context: HashMap::new(), // TODO: provide claims to the downstream lambdas
+            usage_identifier_key: token.to_string(),
+            principal_id: principal_id.to_string(),
             policy_document: PolicyDocument {
                 version: "2012-10-17".to_string(),
                 statement: vec![PolicyStatement {
@@ -55,12 +55,12 @@ impl TokenAuthorizerResponse {
         }
     }
 
-    pub fn deny() -> Self {
+    pub fn deny(token: &str) -> Self {
         // TODO: see if can use context for specifying the reject reason
         Self {
-            context: HashMap::new(),              // TODO: verify if needed
-            usage_identifier_key: "".to_string(), // TODO: verify if needed
-            principal_id: "api_request".to_string(),
+            context: HashMap::new(),
+            usage_identifier_key: token.to_string(),
+            principal_id: "none".to_string(),
             policy_document: PolicyDocument {
                 version: "2012-10-17".to_string(),
                 statement: vec![PolicyStatement {

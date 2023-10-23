@@ -14,7 +14,7 @@ impl PrincipalIDClaims {
         }
     }
 
-    pub fn new_from_comma_separated_values(
+    pub fn from_comma_separated_values(
         comma_separated_values: &str,
         default_value: String,
     ) -> Self {

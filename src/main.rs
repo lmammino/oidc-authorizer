@@ -22,14 +22,16 @@ async fn main() -> Result<(), Error> {
     let principal_id_claims =
         env::var("PRINCIPAL_ID_CLAIMS").unwrap_or("preferred_username, appid".to_string());
     let default_principal_id = env::var("DEFAULT_PRINCIPAL_ID").unwrap_or("unknown".to_string());
-    let principal_id_claims = PrincipalIDClaims::new_from_comma_separated_values(
+    let principal_id_claims = PrincipalIDClaims::from_comma_separated_values(
         principal_id_claims.as_str(),
         default_principal_id,
     );
     let accepted_issuers = env::var("ACCEPTED_ISSUERS").unwrap_or_default();
-    let accepted_issuers: AcceptedClaims = accepted_issuers.parse().unwrap(); // infallible
+    let accepted_issuers =
+        AcceptedClaims::from_comma_separated_values(accepted_issuers.as_str(), "iss".to_string());
     let accepted_audiences = env::var("ACCEPTED_AUDIENCES").unwrap_or_default();
-    let accepted_audiences: AcceptedClaims = accepted_audiences.parse().unwrap(); // infallible
+    let accepted_audiences: AcceptedClaims =
+        AcceptedClaims::from_comma_separated_values(accepted_audiences.as_str(), "aud".to_string());
     let accepted_algorithms = env::var("ACCEPTED_ALGORITHMS").unwrap_or_default();
     let accepted_algorithms: AcceptedAlgorithms = accepted_algorithms.parse()?; // infallible
 

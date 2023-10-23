@@ -63,37 +63,86 @@ impl Service<LambdaEvent<TokenAuthorizerEvent>> for Handler {
     fn call(&mut self, req: LambdaEvent<TokenAuthorizerEvent>) -> Self::Future {
         let jwks_cache = self.keys_cache.clone();
         let principal_id_claims = self.principal_id_claims.clone();
+        let accepted_issuers = self.accepted_issuers.clone();
+        let accepted_audiences = self.accepted_audiences.clone();
+        let accepted_algorithms = self.accepted_signing_algorithms.clone();
 
         Box::pin(async move {
-            // TODO: logging
             let (event, _) = req.into_parts();
-            // TODO: convert exceptions into explicit deny (with proper logs)
-            let token = parse_token_from_header(&event.authorization_token)?;
-            let token_header = decode_header(token)?;
-            if token_header.kid.is_none() {
-                return Err("Missing kid".into());
+            let deny = TokenAuthorizerResponse::deny(&event.method_arn);
+
+            // extract token from header
+            let token = parse_token_from_header(&event.authorization_token);
+            if let Err(e) = token {
+                tracing::info!(
+                    "Failed to extract token fron header (header='{}'): {}",
+                    event.authorization_token,
+                    e
+                );
+                return Ok(deny);
             }
+            let token = token.unwrap();
+
+            // parse token header
+            let token_header = decode_header(token);
+            if let Err(e) = token_header {
+                tracing::info!("Failed to parse token header (token='{}'): {}", token, e);
+                return Ok(deny);
+            }
+            let token_header = token_header.unwrap();
+
+            // validate the signing algorithm
+            if let Err(e) = accepted_algorithms.assert(&token_header.alg) {
+                tracing::info!(e);
+                return Ok(deny);
+            }
+
+            // retrieve token key
+            if token_header.kid.is_none() {
+                tracing::info!(
+                    "Missing kid in token header (token_header='{:?}')",
+                    token_header
+                );
+                return Ok(deny);
+            }
+
             // get the key from the cache
             let key_id = token_header.kid.unwrap();
-            // TODO: validate supported signing algorithms
             let read_guard = jwks_cache.read().await;
             let maybe_key = read_guard.keys.get(&key_id);
             if maybe_key.is_none() && read_guard.should_refresh() {
                 jwks_cache.write().await.refresh().await?;
             }
             let key = read_guard.keys.get(&key_id).cloned();
-            // TODO: fail if cannot find key
-            let token_payload = decode::<serde_json::Value>(
-                token,
-                &key.unwrap(),
-                &Validation::new(token_header.alg),
-            )?;
-            // TODO: validate issuer, audience and other claims
+            if key.is_none() {
+                tracing::info!("Failed to find key for kid='{}'", key_id);
+                return Ok(deny);
+            }
+            let key = key.unwrap();
+
+            // validate token and get payload
+            let token_payload =
+                decode::<serde_json::Value>(token, &key, &Validation::new(token_header.alg));
+            if let Err(e) = token_payload {
+                tracing::info!("Failed to validate token (token='{}'): {}", token, e);
+                return Ok(deny);
+            }
+            let token_payload = token_payload.unwrap();
+
+            // validate issuer
+            if let Err(e) = accepted_issuers.assert(&token_payload.claims) {
+                tracing::info!(e);
+                return Ok(deny);
+            }
+
+            // validate audience
+            if let Err(e) = accepted_audiences.assert(&token_payload.claims) {
+                tracing::info!(e);
+                return Ok(deny);
+            }
 
             let principal_id =
                 principal_id_claims.get_principal_id_from_claims(token_payload.claims.clone());
-
-            println!("{:?}", token);
 
             Ok(TokenAuthorizerResponse::allow(
                 token,

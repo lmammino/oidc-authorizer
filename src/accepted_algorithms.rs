@@ -1,4 +1,4 @@
-use std::{str::FromStr, string::ParseError};
+use std::str::FromStr;
 
 use jsonwebtoken::Algorithm;
 
@@ -8,6 +8,16 @@ pub struct AcceptedAlgorithms(Vec<Algorithm>);
 impl AcceptedAlgorithms {
     pub fn is_accepted(&self, algorithm: &Algorithm) -> bool {
         self.0.is_empty() || self.0.contains(algorithm)
+    }
+
+    pub fn assert(&self, algorithm: &Algorithm) -> Result<(), String> {
+        match self.is_accepted(algorithm) {
+            true => Ok(()),
+            false => Err(format!(
+                "Unsupported algorithm (found={:?}, supported={:?})",
+                algorithm, self.0
+            )),
+        }
     }
 }
 

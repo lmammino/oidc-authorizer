@@ -32,8 +32,8 @@ async fn main() -> Result<(), Error> {
     let accepted_audiences = env::var("ACCEPTED_AUDIENCES").unwrap_or_default();
     let accepted_audiences: AcceptedClaims =
         AcceptedClaims::from_comma_separated_values(accepted_audiences.as_str(), "aud".to_string());
-    let accepted_algorithms = env::var("ACCEPTED_ALGORITHMS").unwrap_or_default();
-    let accepted_algorithms: AcceptedAlgorithms = accepted_algorithms.parse()?; // infallible
+    let accepted_signing_algorithms = env::var("ACCEPTED_ALGORITHMS").unwrap_or_default();
+    let accepted_signing_algorithms: AcceptedAlgorithms = accepted_signing_algorithms.parse()?; // infallible
 
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
@@ -44,12 +44,12 @@ async fn main() -> Result<(), Error> {
         .init();
 
     run(handler::Handler::new(
-        jwks_uri,
+        jwks_uri, // TODO: consider a Config struct
         min_refresh_rate,
-        principal_id_claims,
-        accepted_issuers,
-        accepted_audiences,
-        accepted_algorithms,
+        Box::leak(Box::new(principal_id_claims)),
+        Box::leak(Box::new(accepted_issuers)),
+        Box::leak(Box::new(accepted_audiences)),
+        Box::leak(Box::new(accepted_signing_algorithms)),
     ))
     .await
 }

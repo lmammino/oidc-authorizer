@@ -1280,6 +1280,7 @@ name = "oidc-authorizer"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "futures-util",
  "httpmock",
  "jsonwebtoken",
  "lambda_runtime",

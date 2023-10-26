@@ -11,6 +11,7 @@ mod handler;
 mod keys_cache;
 mod keysmap;
 mod models;
+mod parse_token_from_header;
 mod principalid_claims;
 
 #[tokio::main]

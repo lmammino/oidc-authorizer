@@ -3,6 +3,7 @@ use crate::{
     accepted_claims::AcceptedClaims,
     keys_cache::KeysCache,
     models::{TokenAuthorizerEvent, TokenAuthorizerResponse},
+    parse_token_from_header::parse_token_from_header,
     principalid_claims::PrincipalIDClaims,
 };
 use futures_util::future::FutureExt;
@@ -51,7 +52,7 @@ impl Handler {
         let token = parse_token_from_header(&event.authorization_token);
         if let Err(e) = token {
             tracing::info!(
-                "Failed to extract token fron header (header='{}'): {}",
+                "Failed to extract token fron header (header_value='{}'): {}",
                 event.authorization_token,
                 e
             );
@@ -140,13 +141,6 @@ impl Clone for Handler {
             accepted_signing_algorithms: self.accepted_signing_algorithms,
         }
     }
-}
-
-fn parse_token_from_header(authorization_token: &str) -> Result<&str, Error> {
-    if authorization_token.len() >= 8 && &(authorization_token[0..7]) == "Bearer " {
-        return Ok(&(authorization_token[7..]));
-    }
-    Err(Error::from("Authorization token must start with 'Bearer '"))
 }
 
 impl Service<LambdaEvent<TokenAuthorizerEvent>> for Handler {

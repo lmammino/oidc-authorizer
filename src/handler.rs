@@ -120,7 +120,7 @@ impl Handler {
 
         let principal_id = self
             .principal_id_claims
-            .get_principal_id_from_claims(token_payload.claims.clone());
+            .get_principal_id_from_claims(&token_payload.claims);
 
         Ok(TokenAuthorizerResponse::allow(
             token,

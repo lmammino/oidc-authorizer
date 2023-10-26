@@ -6,13 +6,11 @@ use crate::{
     parse_token_from_header::parse_token_from_header,
     principalid_claims::PrincipalIDClaims,
 };
-use futures_util::future::FutureExt;
+use futures_util::future::{BoxFuture, FutureExt};
 use jsonwebtoken::{decode, decode_header, Validation};
 use lambda_runtime::{Error, LambdaEvent, Service};
 use reqwest::Url;
 use std::{
-    future::Future,
-    pin::Pin,
     sync::Arc,
     task::{Context, Poll},
 };
@@ -145,7 +143,7 @@ impl Clone for Handler {
 impl Service<LambdaEvent<TokenAuthorizerEvent>> for Handler {
     type Response = TokenAuthorizerResponse;
     type Error = Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Error>> + Send + 'static>>; // TODO: search for boxed future
+    type Future = BoxFuture<'static, Result<Self::Response, Error>>;
 
     fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Error>> {
         Ok(()).into()

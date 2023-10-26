@@ -46,8 +46,6 @@ impl Handler {
     }
 
     async fn do_call(self, event: TokenAuthorizerEvent) -> Result<TokenAuthorizerResponse, Error> {
-        let deny = TokenAuthorizerResponse::deny(&event.method_arn);
-
         // extract token from header
         let token = parse_token_from_header(&event.authorization_token);
         if let Err(e) = token {
@@ -56,9 +54,10 @@ impl Handler {
                 event.authorization_token,
                 e
             );
-            return Ok(deny);
+            return Ok(TokenAuthorizerResponse::deny(""));
         }
         let token = token.unwrap();
+        let deny = TokenAuthorizerResponse::deny(&event.method_arn);
 
         // parse token header
         let token_header = decode_header(token);

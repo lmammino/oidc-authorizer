@@ -61,6 +61,11 @@ mod tests {
             principal_id_claims.get_principal_id_from_claims(&json!({"bar": "some_bar"})),
             "some_bar"
         );
+        // if it's not a string, it get's converted to a JSON string
+        assert_eq!(
+            principal_id_claims.get_principal_id_from_claims(&json!({"bar": {"a": "b"}})),
+            "{\"a\":\"b\"}"
+        );
     }
 
     #[test]

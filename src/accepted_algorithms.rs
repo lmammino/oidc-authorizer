@@ -1,8 +1,7 @@
+use jsonwebtoken::Algorithm;
 use std::str::FromStr;
 
-use jsonwebtoken::Algorithm;
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AcceptedAlgorithms(Vec<Algorithm>);
 
 impl AcceptedAlgorithms {
@@ -18,23 +17,6 @@ impl AcceptedAlgorithms {
                 algorithm, self.0
             )),
         }
-    }
-}
-
-impl Default for AcceptedAlgorithms {
-    fn default() -> Self {
-        Self(vec![
-            // supports all asymmetric signature algorithms by default
-            Algorithm::ES256,
-            Algorithm::ES384,
-            Algorithm::RS256,
-            Algorithm::RS384,
-            Algorithm::RS512,
-            Algorithm::PS256,
-            Algorithm::PS384,
-            Algorithm::PS512,
-            Algorithm::EdDSA,
-        ])
     }
 }
 
@@ -85,11 +67,34 @@ mod tests {
     }
 
     #[test]
-    fn it_should_accept_any_algorithm_if_empty() {
+    fn it_should_accept_any_algorithm_with_an_empty_string() {
         let s = "";
         let accepted_alg: Result<AcceptedAlgorithms, _> = s.parse();
         assert!(accepted_alg.is_ok());
         let accepted_alg = accepted_alg.unwrap();
+        assert!(accepted_alg.is_accepted(&Algorithm::ES256));
+        assert!(accepted_alg.assert(&Algorithm::ES256).is_ok());
+        assert!(accepted_alg.is_accepted(&Algorithm::ES384));
+        assert!(accepted_alg.assert(&Algorithm::ES384).is_ok());
+        assert!(accepted_alg.is_accepted(&Algorithm::RS256));
+        assert!(accepted_alg.assert(&Algorithm::RS256).is_ok());
+        assert!(accepted_alg.is_accepted(&Algorithm::RS384));
+        assert!(accepted_alg.assert(&Algorithm::RS384).is_ok());
+        assert!(accepted_alg.is_accepted(&Algorithm::RS512));
+        assert!(accepted_alg.assert(&Algorithm::RS512).is_ok());
+        assert!(accepted_alg.is_accepted(&Algorithm::PS256));
+        assert!(accepted_alg.assert(&Algorithm::PS256).is_ok());
+        assert!(accepted_alg.is_accepted(&Algorithm::PS384));
+        assert!(accepted_alg.assert(&Algorithm::PS384).is_ok());
+        assert!(accepted_alg.is_accepted(&Algorithm::PS512));
+        assert!(accepted_alg.assert(&Algorithm::PS512).is_ok());
+        assert!(accepted_alg.is_accepted(&Algorithm::EdDSA));
+        assert!(accepted_alg.assert(&Algorithm::EdDSA).is_ok());
+    }
+
+    #[test]
+    fn it_should_accept_any_algorithm_by_default() {
+        let accepted_alg: AcceptedAlgorithms = Default::default();
         assert!(accepted_alg.is_accepted(&Algorithm::ES256));
         assert!(accepted_alg.assert(&Algorithm::ES256).is_ok());
         assert!(accepted_alg.is_accepted(&Algorithm::ES384));

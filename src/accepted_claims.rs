@@ -72,62 +72,76 @@ mod tests {
     }
 
     #[test]
-    fn test_is_accepted() {
+    fn it_should_accept_expected_claims_and_reject_others() {
         let accepted_claims = AcceptedClaims::from_comma_separated_values(
             "https://example.com, https://example.org",
             "iss".to_string(),
         );
 
         assert!(accepted_claims.is_accepted("https://example.com"));
+        assert!(accepted_claims
+            .assert(&json!({"iss": "https://example.com"}))
+            .is_ok());
         assert!(accepted_claims.is_accepted("https://example.org"));
+        assert!(accepted_claims
+            .assert(&json!({"iss": "https://example.org"}))
+            .is_ok());
         assert!(!accepted_claims.is_accepted("https://example.net"));
+        assert!(accepted_claims
+            .assert(&json!({"iss": "https://example.net"}))
+            .is_err());
     }
 
     #[test]
-    fn test_is_accepted_with_empty_list() {
+    fn it_should_accept_everything_when_using_an_empty_list() {
         let accepted_claims = AcceptedClaims::from_comma_separated_values("", "iss".to_string());
 
         assert!(accepted_claims.is_accepted("https://example.com"));
+        assert!(accepted_claims
+            .assert(&json!({"iss": "https://example.com"}))
+            .is_ok());
         assert!(accepted_claims.is_accepted("https://example.org"));
+        assert!(accepted_claims
+            .assert(&json!({"iss": "https://example.org"}))
+            .is_ok());
         assert!(accepted_claims.is_accepted("https://example.net"));
+        assert!(accepted_claims
+            .assert(&json!({"iss": "https://example.net"}))
+            .is_ok());
+        // it should also accept tokens with the missing claim
+        assert!(accepted_claims
+            .assert(&json!({"some_other_claim": "some_value"}))
+            .is_ok());
     }
 
     #[test]
-    fn test_assert() {
+    fn it_should_reject_if_the_claim_is_missing() {
         let accepted_claims = AcceptedClaims::from_comma_separated_values(
             "https://example.com, https://example.org",
             "iss".to_string(),
         );
 
-        let claims = json!({
-            "iss": "https://example.com"
-        });
-        assert!(accepted_claims.assert(&claims).is_ok());
-        let claims = json!({
-            "iss": "https://example.org"
-        });
-        assert!(accepted_claims.assert(&claims).is_ok());
-        let claims = json!({
-            "iss": "https://example.net"
-        });
-        assert_eq!(accepted_claims.assert(&claims).unwrap_err(), "Unsupported value for claim 'iss' (found='https://example.net', supported=[\"https://example.com\", \"https://example.org\"])");
+        let result = accepted_claims.assert(&json!({
+            "some_other_claim": "some_value"
+        }));
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Missing claim 'iss'".to_string());
     }
 
     #[test]
-    fn test_assert_with_empty_list() {
-        let accepted_claims = AcceptedClaims::from_comma_separated_values("", "iss".to_string());
+    fn it_should_reject_if_the_claim_is_not_a_string() {
+        let accepted_claims = AcceptedClaims::from_comma_separated_values(
+            "https://example.com, https://example.org",
+            "iss".to_string(),
+        );
 
-        let claims = json!({
-            "iss": "https://example.com"
-        });
-        assert!(accepted_claims.assert(&claims).is_ok());
-        let claims = json!({
-            "iss": "https://example.org"
-        });
-        assert!(accepted_claims.assert(&claims).is_ok());
-        let claims = json!({
-            "iss": "https://example.net"
-        });
-        assert!(accepted_claims.assert(&claims).is_ok());
+        let result = accepted_claims.assert(&json!({
+            "iss": 22
+        }));
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            "Claim 'iss' is not a string".to_string()
+        );
     }
 }

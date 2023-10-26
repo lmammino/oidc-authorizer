@@ -80,7 +80,7 @@ impl Handler {
             return Ok(deny);
         }
 
-        // get the key from the cache
+        // get the key from the cache. TODO: try to see if this logic can be moved directly into the cache struct
         let key_id = token_header.kid.unwrap();
         let read_guard = self.keys_cache.read().await;
         let maybe_key = read_guard.keys.get(&key_id);

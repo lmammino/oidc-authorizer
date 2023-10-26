@@ -12,6 +12,7 @@ pub enum KeysCacheError {
     JwksParseError(#[from] serde_json::Error),
 }
 
+#[derive(Debug)]
 pub struct KeysCache {
     jwks_uri: Url,
     client: Client,
@@ -43,5 +44,31 @@ impl KeysCache {
 
     pub fn should_refresh(&self) -> bool {
         self.last_jwks_fetch + self.min_refresh_rate < Utc::now()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_should_initialize_an_instance() {
+        let jwks_uri = Url::parse("https://example.com/jwks.json").unwrap();
+        let min_refresh_rate = Duration::seconds(60);
+        let keys_cache = KeysCache::new(jwks_uri.clone(), min_refresh_rate);
+
+        assert_eq!(keys_cache.jwks_uri, jwks_uri);
+        assert_eq!(keys_cache.min_refresh_rate, min_refresh_rate);
+        assert_eq!(keys_cache.keys.len(), 0);
+        assert!(keys_cache.should_refresh());
+    }
+
+    #[tokio::test]
+    async fn it_should_referesh_the_cache() {
+        let jwks_uri = Url::parse("https://example.com/jwks.json").unwrap();
+        let min_refresh_rate = Duration::seconds(60);
+        let mut _keys_cache = KeysCache::new(jwks_uri.clone(), min_refresh_rate);
+
+        // TODO: mock the request and call the refresh method
     }
 }

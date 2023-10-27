@@ -1,6 +1,7 @@
 use accepted_algorithms::AcceptedAlgorithms;
 use accepted_claims::AcceptedClaims;
 use chrono::Duration;
+use keys_storage::KeysStorage;
 use lambda_runtime::{run, Error};
 use principalid_claims::PrincipalIDClaims;
 use reqwest::Url;
@@ -8,7 +9,7 @@ use std::env;
 mod accepted_algorithms;
 mod accepted_claims;
 mod handler;
-mod keys_cache;
+mod keys_storage;
 mod keysmap;
 mod models;
 mod parse_token_from_header;
@@ -44,9 +45,9 @@ async fn main() -> Result<(), Error> {
         .without_time()
         .init();
 
+    let keys = KeysStorage::new(jwks_uri, min_refresh_rate);
     run(handler::Handler::new(
-        jwks_uri, // TODO: consider a Config struct
-        min_refresh_rate,
+        Box::leak(Box::new(keys)),
         Box::leak(Box::new(principal_id_claims)),
         Box::leak(Box::new(accepted_issuers)),
         Box::leak(Box::new(accepted_audiences)),

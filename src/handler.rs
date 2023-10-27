@@ -1,7 +1,7 @@
 use crate::{
     accepted_algorithms::AcceptedAlgorithms,
     accepted_claims::AcceptedClaims,
-    keys_cache::KeysCache,
+    keys_storage::KeysStorage,
     models::{TokenAuthorizerEvent, TokenAuthorizerResponse},
     parse_token_from_header::parse_token_from_header,
     principalid_claims::PrincipalIDClaims,
@@ -9,15 +9,10 @@ use crate::{
 use futures_util::future::{BoxFuture, FutureExt};
 use jsonwebtoken::{decode, decode_header, Validation};
 use lambda_runtime::{Error, LambdaEvent, Service};
-use reqwest::Url;
-use std::{
-    sync::Arc,
-    task::{Context, Poll},
-};
-use tokio::sync::RwLock;
+use std::task::{Context, Poll};
 
 pub struct Handler {
-    pub keys_cache: Arc<RwLock<KeysCache>>,
+    pub keys: &'static KeysStorage,
     pub principal_id_claims: &'static PrincipalIDClaims,
     pub accepted_issuers: &'static AcceptedClaims,
     pub accepted_audiences: &'static AcceptedClaims,
@@ -26,16 +21,14 @@ pub struct Handler {
 
 impl Handler {
     pub fn new(
-        jwks_uri: Url,
-        min_refresh_rate: chrono::Duration,
+        keys: &'static KeysStorage,
         principal_id_claims: &'static PrincipalIDClaims,
         accepted_issuers: &'static AcceptedClaims,
         accepted_audiences: &'static AcceptedClaims,
         accepted_signing_algorithms: &'static AcceptedAlgorithms,
     ) -> Self {
-        let keys_cache = KeysCache::new(jwks_uri, min_refresh_rate);
         Self {
-            keys_cache: Arc::new(RwLock::new(keys_cache)),
+            keys,
             principal_id_claims,
             accepted_issuers,
             accepted_audiences,
@@ -80,19 +73,14 @@ impl Handler {
             return Ok(deny);
         }
 
-        // get the key from the cache. TODO: try to see if this logic can be moved directly into the cache struct
+        // get the key from the storage
         let key_id = token_header.kid.unwrap();
-        let read_guard = self.keys_cache.read().await;
-        let maybe_key = read_guard.keys.get(&key_id);
-        if maybe_key.is_none() && read_guard.should_refresh() {
-            self.keys_cache.write().await.refresh().await?;
-        }
-        let key = read_guard.keys.get(&key_id).cloned();
-        if key.is_none() {
-            tracing::info!("Failed to find key for kid='{}'", key_id);
+        let key_result = self.keys.get(&key_id).await;
+        if let Err(e) = key_result {
+            tracing::info!("Failed to retrieve key (key_id='{}'): {}", key_id, e);
             return Ok(deny);
         }
-        let key = key.unwrap();
+        let key = key_result.unwrap();
 
         // validate token and get payload
         let token_payload =
@@ -131,7 +119,7 @@ impl Handler {
 impl Clone for Handler {
     fn clone(&self) -> Self {
         Self {
-            keys_cache: self.keys_cache.clone(),
+            keys: self.keys,
             principal_id_claims: self.principal_id_claims,
             accepted_issuers: self.accepted_issuers,
             accepted_audiences: self.accepted_audiences,

@@ -1,49 +1,66 @@
 use crate::keysmap::KeysMap;
 use chrono::{DateTime, Duration, Utc};
-use jsonwebtoken::jwk::JwkSet;
+use jsonwebtoken::{jwk::JwkSet, DecodingKey};
 use reqwest::{Client, Url};
+use std::sync::Arc;
 use thiserror::Error;
+use tokio::sync::RwLock;
 
 #[derive(Debug, Error)]
-pub enum KeysCacheError {
+pub enum KeysStorageError {
     #[error("Failed to fetch JWKS: {0}")]
     FetchError(#[from] reqwest::Error),
     #[error("Failed to parse JWKS content: {0}")]
     JwksParseError(#[from] serde_json::Error),
+    #[error("Key '{0}' not found")]
+    KeyNotFound(String),
 }
 
 #[derive(Debug)]
-pub struct KeysCache {
+pub struct KeysStorage {
     jwks_uri: Url,
     client: Client,
-    pub keys: KeysMap,
-    last_jwks_fetch: DateTime<Utc>,
+    storage: Arc<RwLock<(KeysMap, DateTime<Utc>)>>,
     min_refresh_rate: Duration,
 }
 
-impl KeysCache {
+impl KeysStorage {
     pub fn new(jwks_uri: Url, min_refresh_rate: Duration) -> Self {
         Self {
             jwks_uri,
             min_refresh_rate,
             client: Client::new(),
-            keys: KeysMap::default(),
-            last_jwks_fetch: Default::default(),
+            storage: Arc::new(RwLock::new((KeysMap::default(), Default::default()))),
         }
     }
 
-    pub async fn refresh(&mut self) -> Result<(), KeysCacheError> {
+    pub async fn get(&self, key_id: &str) -> Result<DecodingKey, KeysStorageError> {
+        let read_guard = self.storage.read().await;
+        let maybe_key = read_guard.0.get(key_id);
+        let should_refresh = read_guard.1 + self.min_refresh_rate < Utc::now();
+        if maybe_key.is_none() && should_refresh {
+            drop(read_guard);
+            self.refresh().await?;
+            let read_guard = self.storage.read().await;
+            let maybe_key = read_guard.0.get(key_id);
+            if let Some(key) = maybe_key {
+                return Ok(key.clone());
+            }
+            drop(read_guard);
+        }
+
+        Err(KeysStorageError::KeyNotFound(key_id.to_string()))
+    }
+
+    async fn refresh(&self) -> Result<(), KeysStorageError> {
         let res = self.client.get(self.jwks_uri.as_ref()).send().await?;
         let jwks = res.text().await?;
         let jwks: JwkSet = serde_json::from_str(&jwks)?;
-        self.keys = jwks.into();
-        self.last_jwks_fetch = Utc::now();
 
+        let mut write_guard = self.storage.write().await;
+        write_guard.0 = jwks.into();
+        write_guard.1 = Utc::now();
         Ok(())
-    }
-
-    pub fn should_refresh(&self) -> bool {
-        self.last_jwks_fetch + self.min_refresh_rate < Utc::now()
     }
 }
 
@@ -52,22 +69,20 @@ mod tests {
     use super::*;
     use httpmock::prelude::*;
 
-    #[test]
-    fn it_should_initialize_an_instance() {
+    #[tokio::test]
+    async fn it_should_initialize_an_empty_instance() {
         let jwks_uri = Url::parse("https://example.com/jwks.json").unwrap();
         let min_refresh_rate = Duration::seconds(60);
-        let keys_cache = KeysCache::new(jwks_uri.clone(), min_refresh_rate);
+        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate);
 
         assert_eq!(keys_cache.jwks_uri, jwks_uri);
         assert_eq!(keys_cache.min_refresh_rate, min_refresh_rate);
-        assert_eq!(keys_cache.keys.len(), 0);
-        assert!(keys_cache.should_refresh());
+        assert_eq!(keys_cache.storage.read().await.0.len(), 0);
     }
 
     #[tokio::test]
-    async fn it_should_referesh_the_cache() {
+    async fn it_should_referesh_the_cache_when_retrieving_the_first_key() {
         let server = MockServer::start();
-        // Create a mock on the server.
         let jwks_mock = server.mock(|when, then| {
             when.method(GET)
                 .path("/");
@@ -89,12 +104,12 @@ mod tests {
                 "#);
         });
 
+        let key_id = "test/keys/rs256/public";
         let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
         let min_refresh_rate = Duration::seconds(60);
-        let mut keys_cache = KeysCache::new(jwks_uri.clone(), min_refresh_rate);
-        keys_cache.refresh().await.unwrap();
+        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate);
+        let key_result = keys_cache.get(key_id).await;
+        assert!(key_result.is_ok());
         jwks_mock.assert();
-        assert_eq!(keys_cache.keys.len(), 1);
-        assert!(keys_cache.keys.contains_key("test/keys/rs256/public"));
     }
 }

@@ -234,6 +234,32 @@ mod tests {
 
     #[tokio::test]
     #[traced_test]
+    async fn it_validates_rs384_tokens() {
+        let private_key = include_str!("../tests/fixtures/keys/rs384/private.pem");
+        test_with(
+            Algorithm::RS384,
+            EncodingKey::from_rsa_pem(private_key.as_bytes()).unwrap(),
+            include_str!("../tests/fixtures/keys/rs384/jwk.json"),
+            "test/keys/rs384/public",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_validates_rs512_tokens() {
+        let private_key = include_str!("../tests/fixtures/keys/rs512/private.pem");
+        test_with(
+            Algorithm::RS512,
+            EncodingKey::from_rsa_pem(private_key.as_bytes()).unwrap(),
+            include_str!("../tests/fixtures/keys/rs512/jwk.json"),
+            "test/keys/rs512/public",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[traced_test]
     async fn it_validates_es256_tokens() {
         let private_key = include_str!("../tests/fixtures/keys/es256/private.pem");
         test_with(

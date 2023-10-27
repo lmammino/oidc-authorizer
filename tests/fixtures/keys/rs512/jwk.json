@@ -1,0 +1,8 @@
+{
+  "use": "sig",
+  "kty": "RSA",
+  "kid": "test/keys/rs512/public",
+  "alg": "RS512",
+  "n": "0fk6Y4HmapffnqmL--uJoyFtqYfxf8yTde34x33tTu0TOYq1XcnIF_Asfj7BCMT1uTcwmo2DgeUY9txK9sRRFGXBPqOQ7jZLofRYX1eLwD2HE9bQO9UAbEXgq3Ntqq9UJs5DSS5Ak_dVE2E4yovp1kTwJ1E8Z0l8QefFLQN5uz6PSeQuDnoYPSTe7hGm2YFpFo2GX8s6xwhxsvNsT9O8lvuoBa6LEmcaL-0pEeAabOH1dfM8QQ-0iMo6ib5nhO7oH3bTcTznFXWchu5eigyKVg7WF10B6VcWt3Sef4rvPiV_J5yy0WhCYEKbRM2jucRUiymxiIIaxTBmM_JBlKpJBQ",
+  "e": "AQAB"
+}

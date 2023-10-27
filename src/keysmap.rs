@@ -71,7 +71,7 @@ mod tests {
         })).unwrap();
         let keysmap: KeysMap = jwkset.into();
         assert_eq!(keysmap.len(), 2);
-        assert!(keysmap.contains_key(&"test/keys/rs256/public".to_string()));
-        assert!(keysmap.contains_key(&"test/keys/rs512/public".to_string()));
+        assert!(keysmap.contains_key("test/keys/rs256/public"));
+        assert!(keysmap.contains_key("test/keys/rs512/public"));
     }
 }

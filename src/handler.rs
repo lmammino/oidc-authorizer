@@ -144,7 +144,7 @@ impl Service<LambdaEvent<TokenAuthorizerEvent>> for Handler {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use chrono::{Duration, Utc};
     use httpmock::prelude::*;
@@ -241,6 +241,19 @@ mod test {
             EncodingKey::from_ec_pem(private_key.as_bytes()).unwrap(),
             include_str!("../tests/fixtures/keys/es256/jwk.json"),
             "test/keys/es256/public",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_validates_es384_tokens() {
+        let private_key = include_str!("../tests/fixtures/keys/es384/private.pem");
+        test_with(
+            Algorithm::ES384,
+            EncodingKey::from_ec_pem(private_key.as_bytes()).unwrap(),
+            include_str!("../tests/fixtures/keys/es384/jwk.json"),
+            "test/keys/es384/public",
         )
         .await;
     }

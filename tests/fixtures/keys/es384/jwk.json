@@ -1,0 +1,9 @@
+{
+  "use": "sig",
+  "kty": "EC",
+  "kid": "test/keys/es384/public",
+  "crv": "P-384",
+  "alg": "ES384",
+  "x": "OdRJjN9LE_5mRyE7FTPc5Rbiz0qo0-DoepRDX1hxvaB1H9GeieRT5nZBxG2pxRxq",
+  "y": "iEPVCFKy7LEqQAk8IpEEGrIM_Zb_EPOnp6Fdtpmxh5nr5ekUH9xcxaG5sjykhV01"
+}

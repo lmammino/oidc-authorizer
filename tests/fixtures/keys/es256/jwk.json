@@ -1,0 +1,9 @@
+{
+  "use": "sig",
+  "kty": "EC",
+  "kid": "test/keys/es256/public",
+  "crv": "P-256",
+  "alg": "ES256",
+  "x": "aCLrtmzSz3CxEaC_V49zGDbSbZ69SLUINW8_KL1Wqec",
+  "y": "gMS7In0cu3AeH_CDfadSRQaT2_v70TdwZWwPL4e6jdg"
+}

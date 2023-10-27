@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct TokenAuthorizerEvent {
     #[serde(rename = "authorizationToken")]
     pub authorization_token: String,
@@ -10,7 +10,7 @@ pub struct TokenAuthorizerEvent {
     pub method_arn: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct PolicyStatement {
     #[serde(rename = "Action")]
     pub action: String,
@@ -20,7 +20,7 @@ pub struct PolicyStatement {
     pub resource: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct PolicyDocument {
     #[serde(rename = "Version")]
     pub version: String,
@@ -28,7 +28,7 @@ pub struct PolicyDocument {
     pub statement: Vec<PolicyStatement>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct TokenAuthorizerResponse {
     #[serde(rename = "principalId")]
     pub principal_id: String,

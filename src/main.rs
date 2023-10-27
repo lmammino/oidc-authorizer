@@ -22,7 +22,7 @@ async fn main() -> Result<(), Error> {
     let min_refresh_rate = env::var("MIN_REFRESH_RATE").unwrap_or("900".to_string());
     let min_refresh_rate = Duration::seconds(min_refresh_rate.parse::<u64>()? as i64);
     let principal_id_claims =
-        env::var("PRINCIPAL_ID_CLAIMS").unwrap_or("preferred_username, appid".to_string());
+        env::var("PRINCIPAL_ID_CLAIMS").unwrap_or("preferred_username, sub".to_string());
     let default_principal_id = env::var("DEFAULT_PRINCIPAL_ID").unwrap_or("unknown".to_string());
     let principal_id_claims = PrincipalIDClaims::from_comma_separated_values(
         principal_id_claims.as_str(),

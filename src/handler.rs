@@ -142,3 +142,106 @@ impl Service<LambdaEvent<TokenAuthorizerEvent>> for Handler {
         self.clone().do_call(event).boxed()
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use chrono::{Duration, Utc};
+    use httpmock::prelude::*;
+    use jsonwebtoken::{Algorithm, EncodingKey, Header};
+    use reqwest::Url;
+    use serde_json::json;
+    use tracing_test::traced_test;
+
+    async fn test_with(algorithm: Algorithm, encoding_key: EncodingKey, jwk: &str, kid: &str) {
+        // create a mock server that will serve the jwks
+        let server = MockServer::start();
+        let jwks_mock = server.mock(|when, then| {
+            when.method(GET).path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!("{{\"keys\":[ {} ]}}", jwk));
+        });
+
+        let server_url = server.url("/");
+        let iss = server_url.clone();
+        let aud = "test-app";
+        let exp = (Utc::now() + Duration::hours(1)).timestamp();
+
+        // creates a token using the private PEM
+        let token_header: Header =
+            serde_json::from_value(json!({ "alg": algorithm, "kid": kid })).unwrap();
+        let token = jsonwebtoken::encode(
+            &token_header,
+            &json!({ "iss": iss, "aud": aud, "exp": exp, "sub": "some_user", "preferred_username": "some_user" }),
+            &encoding_key,
+        );
+        assert!(token.is_ok());
+        let token = token.unwrap();
+
+        // instantiates an handler
+        let min_refresh_rate = Duration::seconds(600);
+        let jwks_uri = server_url.clone();
+        let principal_id_claims = PrincipalIDClaims::from_comma_separated_values(
+            "preferred_username, sub",
+            "unknown".to_string(),
+        );
+        let accepted_issuers = AcceptedClaims::from_comma_separated_values(&iss, "iss".to_string());
+        let accepted_audiences =
+            AcceptedClaims::from_comma_separated_values(aud, "aud".to_string());
+        let accepted_signing_algorithms: AcceptedAlgorithms = Default::default();
+        let keys = KeysStorage::new(Url::parse(&jwks_uri).unwrap(), min_refresh_rate);
+        let mut handler = Handler::new(
+            Box::leak(Box::new(keys)),
+            Box::leak(Box::new(principal_id_claims)),
+            Box::leak(Box::new(accepted_issuers)),
+            Box::leak(Box::new(accepted_audiences)),
+            Box::leak(Box::new(accepted_signing_algorithms)),
+        );
+
+        // creates the event
+        let event = TokenAuthorizerEvent {
+            authorization_token: format!("Bearer {}", token),
+            method_arn: "arn:aws:execute-api:us-east-1:123456789012:ymy8tbxw7b/*/GET/".to_string(),
+        };
+
+        // calls the handler service and get the response
+        let request = LambdaEvent::new(event, Default::default());
+        let response = handler.call(request).await;
+
+        jwks_mock.assert();
+        assert!(response.is_ok());
+        let response = response.unwrap();
+        assert_eq!(
+            response.policy_document.statement.get(0).unwrap().effect,
+            "Allow"
+        );
+        assert_eq!(response.principal_id, "some_user");
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_validates_rs256_tokens() {
+        let private_key = include_str!("../tests/fixtures/keys/rs256/private.pem");
+        test_with(
+            Algorithm::RS256,
+            EncodingKey::from_rsa_pem(private_key.as_bytes()).unwrap(),
+            include_str!("../tests/fixtures/keys/rs256/jwk.json"),
+            "test/keys/rs256/public",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_validates_es256_tokens() {
+        let private_key = include_str!("../tests/fixtures/keys/es256/private.pem");
+        test_with(
+            Algorithm::ES256,
+            EncodingKey::from_ec_pem(private_key.as_bytes()).unwrap(),
+            include_str!("../tests/fixtures/keys/es256/jwk.json"),
+            "test/keys/es256/public",
+        )
+        .await;
+    }
+}

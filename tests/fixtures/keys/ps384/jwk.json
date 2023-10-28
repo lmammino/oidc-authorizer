@@ -1,0 +1,8 @@
+{
+  "use": "sig",
+  "kty": "RSA",
+  "kid": "test/keys/ps384/public",
+  "alg": "PS384",
+  "n": "oscYkmSOcKzMHleaXYXhfjv3AL2rPgJvFfokerFxbnP3D8F9An_ZQFx7h_bt3Q2BJPFUlorFxdCm3XvbzGG3Q_AgK2wXZ8hCvvJj3Tcu8CFJtCT7mfgjVXXPGSLI_Oqem1QjdwGeyof9P5A1roLGKk4yhQgG0-DVA4Q9v70tm2OFqhaGNpX3Qm5ZABlt54yFV8wS8Af2Xx2Tx6axeJjIGQSzDhD8NGUzQov7fVZreNeOCg5MdDp6m-qf70q7a6WKpOW1qEruWOfo4soE7HXRN43FUIbuhLN1xwJwwOce2CMrShRM1kk3912f9DuHoPN1FZ-1ExV4D-QQWCCCceYMdw",
+  "e": "AQAB"
+}

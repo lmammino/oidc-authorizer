@@ -1,0 +1,8 @@
+{
+  "use": "sig",
+  "kty": "OKP",
+  "kid": "test/keys/eddsa/public",
+  "crv": "Ed25519",
+  "alg": "EdDSA",
+  "x": "63noKMXUhM0UaK-0twy6VaMz05qdpf1nJ7fOSAIa6Y0"
+}

@@ -283,4 +283,56 @@ mod tests {
         )
         .await;
     }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_validates_ps256_tokens() {
+        let private_key = include_str!("../tests/fixtures/keys/ps256/private.pem");
+        test_with(
+            Algorithm::PS256,
+            EncodingKey::from_rsa_pem(private_key.as_bytes()).unwrap(),
+            include_str!("../tests/fixtures/keys/ps256/jwk.json"),
+            "test/keys/ps256/public",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_validates_ps384_tokens() {
+        let private_key = include_str!("../tests/fixtures/keys/ps384/private.pem");
+        test_with(
+            Algorithm::PS384,
+            EncodingKey::from_rsa_pem(private_key.as_bytes()).unwrap(),
+            include_str!("../tests/fixtures/keys/ps384/jwk.json"),
+            "test/keys/ps384/public",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_validates_ps512_tokens() {
+        let private_key = include_str!("../tests/fixtures/keys/ps512/private.pem");
+        test_with(
+            Algorithm::PS512,
+            EncodingKey::from_rsa_pem(private_key.as_bytes()).unwrap(),
+            include_str!("../tests/fixtures/keys/ps512/jwk.json"),
+            "test/keys/ps512/public",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_validates_eddsa_tokens() {
+        let private_key = include_str!("../tests/fixtures/keys/eddsa/private.pem");
+        test_with(
+            Algorithm::EdDSA,
+            EncodingKey::from_ed_pem(private_key.as_bytes()).unwrap(),
+            include_str!("../tests/fixtures/keys/eddsa/jwk.json"),
+            "test/keys/eddsa/public",
+        )
+        .await;
+    }
 }

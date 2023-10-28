@@ -1,0 +1,8 @@
+{
+  "use": "sig",
+  "kty": "RSA",
+  "kid": "test/keys/ps512/public",
+  "alg": "PS512",
+  "n": "xDIrfgo9pcfF84i0a8Deb4Cc0C2fDNR1xcHBHJjoy6xAOzIK8Q-G5l9xFbYaoh4kueia7gHBzHE4d1L2ftr0o6XS81Y2ZhzP9xxZe_Ppt6i_u_VZF7PyPjhmlq99Hi0c_N_SNOH4w-aKtUnh1ahli64V23tb_-tqL1WLBgxcL9MjSQOQ97shh7N_MaOsR0s_wFZRK3Bz6eGTOvb7s0qvtQnf1iXBYVMDoIvzhnm5G6PTwBBxpXUcoqaHhQirQ3CRfTjGwwAvws__B6D7pNoOmk_p-wLftF90NwHO9LBBPZUFHlHCX3T2H2glvOSQy5rNHz-dVD4cTEhhaqkqYZgQQQ",
+  "e": "AQAB"
+}

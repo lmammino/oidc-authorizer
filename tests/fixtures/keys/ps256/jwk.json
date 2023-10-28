@@ -1,0 +1,8 @@
+{
+  "use": "sig",
+  "kty": "RSA",
+  "kid": "test/keys/ps256/public",
+  "alg": "PS256",
+  "n": "nks8qeVrV-g7E0iaY5_TMW-EgJueFlwmR4kzWjlllv2_sYcBBkozM-0qvPbvvomOVYmjfTp8vnab0REcl23jUK3Wn6QifhHkvF3VnVvFs0kbkV7issOeKHtbm8LnX3aVixUCNbgxCJG1Ury7Z4lIsXKQx2SSAL4vTCSjBNPss32uCIzqZ-WVg_qwVnpsMs1LVS3NROjrlyO-ZpCDL9xJEHpl-mD9McpUCAgj5hvGNtFcrWUR6b8WsydSJmMZxDyAjWsAxB_GOI4eoDB3L_esSs4jzq4v4p6L8-eb4bifoHdldtU-3ehINYRJXPf7t9oZIHRd6CKYg6nj0AoM_uCTwQ",
+  "e": "AQAB"
+}

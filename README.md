@@ -13,6 +13,10 @@ A high-performance token-based API Gateway authorizer Lambda that can validate O
 
 This project provides a easy-to-install AWS Lambda function that can be used as a custom authorizer for AWS API Gateway. This authorizer can validate OIDC-issued JWT tokens and it can be used to secure your API endpoints using your OIDC provider of choice (e.g. Apple, Auth0, AWS Cognito, Azure AD / Micsosoft Entra ID, Facebook, GitLab, Google, Keycloak, LinkedIn, Okta, Salesforce, Twitch, etc.).
 
+![A diagram illustrating how this project can be integrated. A user sends an authenticated request to API Gateway. API Gateway is configure to use a custom lambda as an authorizer (THIS PROJECT!). The lambda talks with your OIDC provider to get the public key to validate the user token and responds to API Gateway to Allow or Deny the request.](/docs/lovely-diagram.png)
+
+> A diagram illustrating how this project can be integrated. A user sends an authenticated request to API Gateway. API Gateway is configure to use a custom lambda as an authorizer (THIS PROJECT!). The lambda talks with your OIDC provider to get the public key to validate the user token and responds to API Gateway to Allow or Deny the request.
+
 API Gateway currently exists in 2 flavours: **HTTP APIs** and **REST APIs**. As of today, only HTTP APIs implement a [built-in JWT authorizer](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-jwt-authorizer.html) that supports OIDC-issued tokens.
 
 You might want to consider using this project in the following cases:
@@ -30,7 +34,6 @@ This custom Lambda Authorizer is designed to be **easy to install and configure*
 
 ## ⚠️ WIP
 
-- TODO: add architecture diagram in use case section
 - TODO: document installation process
 - TODO: document supported algorithms
 - TODO: document validation flow

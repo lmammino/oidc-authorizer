@@ -79,7 +79,13 @@ jobs:
           key: ${{ runner.os }}-rust-build-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install cargo lambda
-        run: cargo install --locked cargo-lambda
+        run: |
+          if [ ! -f  ~/.cargo/bin/cargo-lambda ]
+          then
+            cargo install --locked cargo-lambda
+          elif
+            echo "Cargo Lambda already installed"
+          fi
 
       - name: Run cargo lambda build
         run: cargo lambda build --locked --release

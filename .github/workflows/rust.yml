@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,9 +21,6 @@ jobs:
       with:
           toolchain: stable
           components: clippy, rustfmt
-
-    - name: Install cargo lambda
-      run: cargo install --locked cargo-lambda
 
     - uses: actions/cache@v3
       with:
@@ -47,3 +44,28 @@ jobs:
 
     - name: Run cargo lambda build
       run: cargo lambda build --locked --release
+  
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+  
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Install zig
+        uses: goto-bus-stop/setup-zig@v2
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install cargo lambda
+        run: cargo install --locked cargo-lambda

@@ -48,17 +48,10 @@ impl TokenAuthorizerResponse {
     ) -> Self {
         let mut context = HashMap::new();
         context.insert("jwt_principal".to_string(), principal_id.to_string());
-        if let Some(claims) = token_claims.as_object() {
-            for (key, value) in claims.iter() {
-                context.insert(
-                    format!("jwt_claim_{}", key),
-                    value
-                        .as_str()
-                        .map(|s| s.to_string())
-                        .unwrap_or_else(|| value.to_string()),
-                );
-            }
-        }
+        context.insert(
+            "jwt_claims".to_string(),
+            serde_json::to_string(token_claims).unwrap(),
+        );
 
         Self {
             context,
@@ -125,10 +118,8 @@ mod tests {
                     ]
                 },
                 "context": {
-                    "jwt_claim_name": "John Doe",
+                    "jwt_claims": "{\"iat\":1516239022,\"name\":\"John Doe\",\"sub\":\"1234567890\"}",
                     "jwt_principal": "John Doe",
-                    "jwt_claim_sub": "1234567890",
-                    "jwt_claim_iat": "1516239022"
                 },
                 "usageIdentifierKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
             })

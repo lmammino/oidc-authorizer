@@ -35,17 +35,10 @@ pub struct TokenAuthorizerResponse {
     #[serde(rename = "policyDocument")]
     pub policy_document: PolicyDocument,
     pub context: HashMap<String, String>,
-    #[serde(rename = "usageIdentifierKey")]
-    pub usage_identifier_key: String,
 }
 
 impl TokenAuthorizerResponse {
-    pub fn allow(
-        raw_token: &str,
-        principal_id: &str,
-        resource: &str,
-        token_claims: &Value,
-    ) -> Self {
+    pub fn allow(principal_id: &str, resource: &str, token_claims: &Value) -> Self {
         let mut context = HashMap::new();
         context.insert("jwt_principal".to_string(), principal_id.to_string());
         context.insert(
@@ -55,7 +48,6 @@ impl TokenAuthorizerResponse {
 
         Self {
             context,
-            usage_identifier_key: raw_token.to_string(),
             principal_id: principal_id.to_string(),
             policy_document: PolicyDocument {
                 version: "2012-10-17".to_string(),
@@ -68,17 +60,16 @@ impl TokenAuthorizerResponse {
         }
     }
 
-    pub fn deny(token: &str) -> Self {
+    pub fn deny(resource: &str) -> Self {
         Self {
             context: HashMap::new(),
-            usage_identifier_key: token.to_string(),
             principal_id: "none".to_string(),
             policy_document: PolicyDocument {
                 version: "2012-10-17".to_string(),
                 statement: vec![PolicyStatement {
                     effect: "Deny".to_string(),
                     action: "execute-api:Invoke".to_string(),
-                    resource: "*".to_string(),
+                    resource: resource.to_string(),
                 }],
             },
         }
@@ -90,8 +81,6 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    static RAW_TOKEN: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
-
     #[test]
     fn it_should_create_an_allow_response() {
         let principal_id = "John Doe";
@@ -101,8 +90,7 @@ mod tests {
           "name": "John Doe",
           "sub": "1234567890"
         });
-        let response =
-            TokenAuthorizerResponse::allow(RAW_TOKEN, principal_id, resource, &token_claims);
+        let response = TokenAuthorizerResponse::allow(principal_id, resource, &token_claims);
         assert_eq!(
             serde_json::to_value(response).unwrap(),
             json!({
@@ -120,15 +108,15 @@ mod tests {
                 "context": {
                     "jwt_claims": "{\"iat\":1516239022,\"name\":\"John Doe\",\"sub\":\"1234567890\"}",
                     "jwt_principal": "John Doe",
-                },
-                "usageIdentifierKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+                }
             })
         );
     }
 
     #[test]
     fn it_create_a_deny_response() {
-        let response = TokenAuthorizerResponse::deny(RAW_TOKEN);
+        let resource = "arn::some:resource";
+        let response = TokenAuthorizerResponse::deny(resource);
         assert_eq!(
             serde_json::to_value(response).unwrap(),
             json!({
@@ -138,13 +126,12 @@ mod tests {
                         {
                             "Action": "execute-api:Invoke",
                             "Effect": "Deny",
-                            "Resource": "*"
+                            "Resource": "arn::some:resource"
                         }
                     ],
                     "Version": "2012-10-17"
                 },
-                "principalId": "none",
-                "usageIdentifierKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+                "principalId": "none"
             })
         );
     }

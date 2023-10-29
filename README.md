@@ -23,9 +23,9 @@ You might want to consider using this project in the following cases:
 - You want to customise the validation process even further. In this case, you can fork this project and customise the validation logic to your needs.
 
 
-## Design principles
+## Design goals
 
-This custom Lambda Authorizer is designed to be **easy to install and configure** and to be **highly performant**. It is currently written in Rust, which is currently the fastest lambda Runtime in terms of cold start and it produces binaries that can provide best-in-class execution performance. Rust makes it also easy to compile the Authorizer Lambda for ARM, which helps even further with performance and cost. Ideally this Lambda, should provide minimal cost, even when used to protect Lambda functions that are invoked very frequently.
+This custom Lambda Authorizer is designed to be **easy to install and configure**, **cheap**, **highly performant**, and **memory-efficient**. It is currently written in Rust, which is currently the fastest lambda Runtime in terms of cold start and it produces binaries that can provide best-in-class execution performance and a low memory footprint. Rust makes it also easy to compile the Authorizer Lambda for ARM, which helps even further with performance and cost. Ideally this Lambda, should provide minimal cost, even when used to protect Lambda functions that are invoked very frequently.
 
 
 ## ⚠️ WIP
@@ -35,7 +35,7 @@ This custom Lambda Authorizer is designed to be **easy to install and configure*
 - TODO: document supported algorithms
 - TODO: document validation flow
 - TODO: document configuration options
-- TODO: document what gets added into the context
+- TODO: document what gets added into the context and how it can be used for app-level authentication
 - TODO: benchmarks
 - TODO: release from GitHub actions
 

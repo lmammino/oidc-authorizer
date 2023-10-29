@@ -46,7 +46,7 @@ impl Handler {
                 event.authorization_token,
                 e
             );
-            return Ok(TokenAuthorizerResponse::deny(""));
+            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
         }
         let token = token.unwrap();
         let deny = TokenAuthorizerResponse::deny(&event.method_arn);
@@ -109,7 +109,6 @@ impl Handler {
             .get_principal_id_from_claims(&token_payload.claims);
 
         Ok(TokenAuthorizerResponse::allow(
-            token,
             &principal_id,
             &event.method_arn,
             &token_payload.claims,

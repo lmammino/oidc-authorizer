@@ -1,0 +1,105 @@
+# An example on how to package the authorizer in your own SAM-managed stack
+#
+# Edit the details below and then deploy with:
+#
+# ```bash
+# sam build --beta-features --template examples/sam/template.yml
+# sam deploy --template .aws-sam/build/template.yaml --guided
+# ```
+#
+# Clean up with:
+#
+# ```bash
+# sam delete --config-file .aws-sam/build/samconfig.toml
+# ```
+
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: AWS SAM template with a simple API definition
+
+Resources:
+  ApiGatewayApi:
+    Type: AWS::Serverless::Api
+    DependsOn: ApiCWLRoleArn
+    Properties:
+      StageName: prod
+      Description: A demo app to test the OIDC authorizer # 👀 CHANGE IF NEEDED
+      # 👀 CHANGE IF NEEDED: enable traces and logs (best practice)
+      TracingEnabled: true
+      MethodSettings:
+        - HttpMethod: "*"
+          LoggingLevel: INFO
+          ResourcePath: "/*"
+          MetricsEnabled: true
+          DataTraceEnabled: true
+      Auth:
+        DefaultAuthorizer: OidcAuthorizer
+        Authorizers:
+          OidcAuthorizer:
+            FunctionArn: !GetAtt OidcLambdaAuthorizer.Arn
+
+  ApiCWLRoleArn:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn: !GetAtt CloudWatchRole.Arn
+
+  CloudWatchRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Action: "sts:AssumeRole"
+          Effect: Allow
+          Principal:
+            Service: apigateway.amazonaws.com
+      Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+
+  # 👀 CHANGE: Define your APIs here
+  # Authorizer Lambda
+  OidcLambdaAuthorizer:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+    Properties:
+      CodeUri: ../..
+      Handler: bootstrap
+      Runtime: provided.al2
+      Timeout: 3 # 👀 CHANGE IF NEEDED
+      MemorySize: 128 # 👀 CHANGE IF NEEDED
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          # 👀 CHANGE THE FOLLOWING VALUES:
+          JWKS_URI: "https://login.microsoftonline.com/3e4abf5a-fdc9-485c-9853-af03c4a32976/discovery/v2.0/keys"
+          MIN_REFRESH_RATE: "900"
+          PRINCIPAL_ID_CLAIMS: "preferred_username, sub"
+          DEFAULT_PRINCIPAL_ID: "unknown"
+          ACCEPTED_ISSUERS: "https://login.microsoftonline.com/3e4abf5a-fdc9-485c-9853-af03c4a32976/v2.0"
+          ACCEPTED_AUDIENCES: "5c8efa13-dfa5-48b5-83c3-6fe8bb819a0f"
+          ACCEPTED_ALGORITHMS: ""
+
+  SampleApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /
+            Method: get
+            RestApiId:
+              Ref: ApiGatewayApi
+      Runtime: python3.9
+      Handler: index.handler
+      InlineCode: |
+        def handler(event, context):
+            return {'body': 'Hello World!', 'statusCode': 200}
+
+Outputs:
+  ApiEndpoint:
+    Description: "API Gateway endpoint"
+    Value: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"

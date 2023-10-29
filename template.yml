@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: oidc-authorizer
+    Description: A high-performance token-based API Gateway authorizer Lambda that can validate OIDC-issued JWT tokens.
+    Author: Luciano Mammino
+    SpdxLicenseId: MIT
+    LicenseUrl: LICENSE
+    ReadmeUrl: README.md
+    Labels: ["apigateway", "authorizer", "lambda", "oidc"]
+    HomePageUrl: https://github.com/lmammino/oidc-authorizer
+    SemanticVersion: 0.0.1
+    SourceCodeUrl: https://github.com/lmammino/oidc-authorizer
+
+Parameters:
+  JwksUri:
+    Type: String
+    Description: The URL of the OIDC provider JWKS (Endpoint providing public keys for verification).
+  MinRefreshRate:
+    Type: String
+    Description: The minumum number of seconds to wait before keys are refreshed when the given key is not found.
+    Default: "900" # 15 minutes
+  PrincipalIdClaims:
+    Type: String
+    Description: |
+      A comma-separated list of claims defining the token fields that should be used to determine the principal Id 
+      from the token. The fields will be tested in order. If there's no match the value specified in the `DefaultPrincipalId`
+      parameter will be used.
+    Default: "preferred_username, sub"
+  DefaultPrincipalId:
+    Type: String
+    Description: A fallback value for the Principal ID to be used when a principal ID claim is not found in the token.
+    Default: "unknown"
+  AcceptedIssuers:
+    Type: String
+    Description: |
+      A comma-separated list of accepted values for the `iss` claim. If one of the provided values matches,
+      the token issuer is considered valid. If left empty, any issuer will be accepted.
+    Default: ""
+  AcceptedAudiences:
+    Type: String
+    Description: |
+      A comma-separated list of accepted values for the `aud` claim. If one of the provided values matches,
+      the token audience is considered valid. If left empty, any issuer audience be accepted.
+    Default: ""
+  AcceptedAlgorithms:
+    Type: String
+    Description: |
+      A comma-separated list of accepted signing algorithms. If one of the provided values matches,
+      the token signing algorithm is considered valid. If left empty, any supported token signing 
+      algorithm is accepted.
+      Supported values:
+      - ES256
+      - ES384
+      - RS256
+      - RS384
+      - PS256
+      - PS384
+      - PS512
+      - RS512
+      - EdDSA
+    Default: ""
+  LambdaTimeout:
+    Type: Number
+    Description: The timeout to give to the authorizer Lambda.
+    Default: "3"
+  LambdaMemorySize:
+    Type: Number
+    MinValue: "128"
+    MaxValue: "10240"
+    Description: The amount of memory (in MB) to give to the authorizer Lambda.
+    Default: "128"
+
+Resources:
+  OidcAuthorizer:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+    Properties:
+      CodeUri: .
+      Handler: bootstrap
+      Runtime: provided.al2
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemorySize
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          JWKS_URI: !Ref JwksUri
+          MIN_REFRESH_RATE: !Ref MinRefreshRate
+          PRINCIPAL_ID_CLAIMS: !Ref PrincipalIdClaims
+          DEFAULT_PRINCIPAL_ID: !Ref DefaultPrincipalId
+          ACCEPTED_ISSUERS: !Ref AcceptedIssuers
+          ACCEPTED_AUDIENCES: !Ref AcceptedAudiences
+          ACCEPTED_ALGORITHMS: !Ref AcceptedAlgorithms
+
+Outputs:
+  OidcAuthorizerArn:
+    Description: The ARN of the OIDC Authorizer Lambda function
+    Value: !GetAtt OidcAuthorizer.Arn
+    Export:
+      Name: OidcAuthorizerArn

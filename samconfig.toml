@@ -1,0 +1,11 @@
+version = 0.1
+
+[default]
+[default.global]
+[default.global.parameters]
+stack_name = "oidc-authorizer-lambda"
+
+[default.build.parameters]
+beta_features = true
+[default.sync.parameters]
+beta_features = true

@@ -4,6 +4,7 @@ use std::str::FromStr;
 #[derive(Debug, Clone, Default)]
 pub struct AcceptedAlgorithms(Vec<Algorithm>);
 
+// TODO: limit the valid signing algorithms only to the public-key algorithm ones
 impl AcceptedAlgorithms {
     pub fn is_accepted(&self, algorithm: &Algorithm) -> bool {
         self.0.is_empty() || self.0.contains(algorithm)

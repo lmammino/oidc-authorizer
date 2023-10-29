@@ -37,6 +37,7 @@ impl Handler {
     }
 
     async fn do_call(self, event: TokenAuthorizerEvent) -> Result<TokenAuthorizerResponse, Error> {
+        // TODO: custom metrics using EMF logs
         // extract token from header
         let token = parse_token_from_header(&event.authorization_token);
         if let Err(e) = token {

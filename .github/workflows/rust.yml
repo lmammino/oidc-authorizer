@@ -21,6 +21,9 @@ jobs:
       with:
           toolchain: stable
           components: clippy, rustfmt
+    
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
 
     - uses: actions/cache@v3
       with:
@@ -28,7 +31,7 @@ jobs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-rust-test-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Run cargo fmt
       run: cargo fmt -- --check
@@ -41,6 +44,16 @@ jobs:
 
     - name: Run cargo build
       run: cargo build --locked --release
+
+    - name: Generate code coverage
+      run: cargo llvm-cov --all-features --lcov --output-path lcov.info
+
+    - name: Upload coverage to codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: lcov.info
+        fail_ci_if_error: true
   
   build:
     runs-on: ubuntu-latest
@@ -63,7 +76,7 @@ jobs:
             ~/.cargo/git
             ~/.cargo/bin
             target
-          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-rust-build-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install cargo lambda
         run: cargo install --locked cargo-lambda

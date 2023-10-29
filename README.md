@@ -1,5 +1,8 @@
 # oidc-authorizer
 
+[![Rust](https://github.com/lmammino/oidc-authorizer/actions/workflows/rust.yml/badge.svg)](https://github.com/lmammino/oidc-authorizer/actions/workflows/rust.yml)
+
+
 A high-performance token-based API Gateway authorizer Lambda that can validate OIDC-issued JWT tokens.
 
 

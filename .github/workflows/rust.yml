@@ -83,7 +83,7 @@ jobs:
           if [ ! -f  ~/.cargo/bin/cargo-lambda ]
           then
             cargo install --locked cargo-lambda
-          elif
+          else
             echo "Cargo Lambda already installed"
           fi
 

@@ -1,2 +1,4 @@
 /target
 .aws-sam/
+.env
+tests/test-event.json

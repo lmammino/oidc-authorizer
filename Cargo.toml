@@ -2,6 +2,7 @@
 name = "oidc-authorizer"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 # Starting in Rust 1.62 you can use `cargo add` to add dependencies 
 # to your project.

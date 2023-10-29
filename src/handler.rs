@@ -110,7 +110,6 @@ impl Handler {
 
         Ok(TokenAuthorizerResponse::allow(
             &principal_id,
-            &event.method_arn,
             &token_payload.claims,
         ))
     }

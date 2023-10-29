@@ -38,11 +38,10 @@ pub struct TokenAuthorizerResponse {
 }
 
 impl TokenAuthorizerResponse {
-    pub fn allow(principal_id: &str, resource: &str, token_claims: &Value) -> Self {
+    pub fn allow(principal_id: &str, token_claims: &Value) -> Self {
         let mut context = HashMap::new();
-        context.insert("jwt_principal".to_string(), principal_id.to_string());
         context.insert(
-            "jwt_claims".to_string(),
+            "jwtClaims".to_string(),
             serde_json::to_string(token_claims).unwrap(),
         );
 
@@ -54,7 +53,10 @@ impl TokenAuthorizerResponse {
                 statement: vec![PolicyStatement {
                     effect: "Allow".to_string(),
                     action: "execute-api:Invoke".to_string(),
-                    resource: resource.to_string(),
+                    // NOTE: this is intentionally open to avoid cache conflicts
+                    //   when enabling cache and using multiple endpoints.
+                    //   For more details you can read: https://www.alexdebrie.com/posts/lambda-custom-authorizers/#caching-across-multiple-functions
+                    resource: "*".to_string(),
                 }],
             },
         }
@@ -84,13 +86,12 @@ mod tests {
     #[test]
     fn it_should_create_an_allow_response() {
         let principal_id = "John Doe";
-        let resource = "arn::some:resource";
         let token_claims = json!({
           "iat": 1516239022,
           "name": "John Doe",
           "sub": "1234567890"
         });
-        let response = TokenAuthorizerResponse::allow(principal_id, resource, &token_claims);
+        let response = TokenAuthorizerResponse::allow(principal_id, &token_claims);
         assert_eq!(
             serde_json::to_value(response).unwrap(),
             json!({
@@ -101,13 +102,12 @@ mod tests {
                         {
                             "Action": "execute-api:Invoke",
                             "Effect": "Allow",
-                            "Resource": "arn::some:resource"
+                            "Resource": "*"
                         }
                     ]
                 },
                 "context": {
-                    "jwt_claims": "{\"iat\":1516239022,\"name\":\"John Doe\",\"sub\":\"1234567890\"}",
-                    "jwt_principal": "John Doe",
+                    "jwtClaims": "{\"iat\":1516239022,\"name\":\"John Doe\",\"sub\":\"1234567890\"}",
                 }
             })
         );

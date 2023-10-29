@@ -57,7 +57,6 @@ Resources:
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 
-  # 👀 CHANGE: Define your APIs here
   # Authorizer Lambda
   OidcLambdaAuthorizer:
     Type: AWS::Serverless::Function
@@ -82,14 +81,15 @@ Resources:
           ACCEPTED_AUDIENCES: "5c8efa13-dfa5-48b5-83c3-6fe8bb819a0f"
           ACCEPTED_ALGORITHMS: ""
 
-  SampleApiFunction:
+  # 👀 CHANGE: Define your APIs here
+  SampleApiFunction1:
     Type: AWS::Serverless::Function
     Properties:
       Events:
         ApiEvent:
           Type: Api
           Properties:
-            Path: /
+            Path: /1
             Method: get
             RestApiId:
               Ref: ApiGatewayApi
@@ -97,9 +97,32 @@ Resources:
       Handler: index.handler
       InlineCode: |
         def handler(event, context):
-            return {'body': 'Hello World!', 'statusCode': 200}
+            return {'body': 'Hello from endpoint1!', 'statusCode': 200}
+
+  SampleApiFunction2:
+    Type: AWS::Serverless::Function
+    Properties:
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /2
+            Method: get
+            RestApiId:
+              Ref: ApiGatewayApi
+      Runtime: python3.9
+      Handler: index.handler
+      InlineCode: |
+        def handler(event, context):
+            return {'body': 'Hello ' + event['requestContext']['authorizer']['principalId'] + ' from endpoint2!\nThese are your claims: ' + event['requestContext']['authorizer']['jwtClaims'], 'statusCode': 200}
 
 Outputs:
-  ApiEndpoint:
+  ApiBaseUrl:
     Description: "API Gateway endpoint"
     Value: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
+  ApiEndpoint1:
+    Description: "API Gateway endpoint"
+    Value: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/prod/1"
+  ApiEndpoint2:
+    Description: "API Gateway endpoint"
+    Value: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/prod/2"

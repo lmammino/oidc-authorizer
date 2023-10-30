@@ -108,12 +108,55 @@ Here's a list of the configuration options that are supported:
 - **Default value**: `""`
 
 
-## ⚠️ WIP
+## Validation Flow
 
-- TODO: document validation flow
-- TODO: document what gets added into the context and how it can be used for app-level authentication
-- TODO: benchmarks
-- TODO: release from GitHub actions
+The following section describes the steps that are followed to validate a token:
+
+  1. The token is parsed from the `Authorization` header of the request. It is expected to be in the form `Bearer <token>`, where `<token>` needs to be a valid JWT token.
+  2. The token is decoded and the header is parsed to extract the `kid` (key id) and the `alg` (algorithm) claims. If the `kid` is not found, the token is rejected. If the `alg` is not supported, the token is rejected.
+  3. The `kid` is used to look up the public key in the JWKS (JSON Web Key Set) provided by the OIDC provider. If the key is not found, the key is refreshed and the lookup is retried. If the key is still not found, the token is rejected. The JWKS cache is optimistic, it does not automatically refresh keys unless a lookup fails. It also does not auto-refresh keys too often (to avoid unnecessary calls to the JWKS endpoint). You can configure the minimum refresh rate (in seconds) using the `MIN_REFRESH_RATE` environment variable.
+  4. The token is decoded and validated using the public key. If the validation fails, the token is rejected. This validation also checks the `exp` (expiration time) claim and the `nbf` (not before) claim. If the token is expired or not yet valid, the token is rejected.
+  5. The `iss` (issuer) claim is checked against the list of accepted issuers. If the issuer is not found in the list, the token is rejected. If the list is empty, any issuer is accepted.
+  6. The `aud` (audience) claim is checked against the list of accepted audiences. If the audience is not found in the list, the token is rejected. If the list is empty, any audience is accepted.
+  7. If all these checks are passed, the token is considered valid and the request is allowed to proceed. The principal ID is extracted from the token using the list of principal ID claims. If no principal ID claim is found, the default principal ID is used.
+
+
+## Context Enrichment
+
+The authorizer enriches the context of the request with the following values:
+
+- `principalId`: the principal ID extracted from the token.
+- `jwtClaims`: a JSON string containing the entire token payload (claims).
+
+These values are injected into the context of the request and can be used to enrich your logging, tracing  or to implement app-level authentication.
+
+When you use the [Lambda-proxy integration](https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-create-api-as-simple-proxy) these values are made available under `event.requestContext.authorizer`.
+
+For example this is how you can access the `principalId` and `jwtClaims` values in a Lambda function written in Python:
+
+```python
+import json
+
+def handler(event, context):
+  print('principalId: ')
+  print(event['requestContext']['authorizer']['principalId'])
+
+  print('jwtClaims: ')
+  jwtClaims = json.loads(event['requestContext']['authorizer']['jwtClaims'])
+  print(jwtClaims)
+
+  return {'body': 'Hello', 'statusCode': 200}
+```
+
+
+## Benchmarks
+
+Proper benchmarks are yet to be written (SORRY 😇), but for now, to prove that this Lambda is still reasonable fast, here's some data observed during some manual tests (128 MB Memory deployment):
+
+- Cold start times: ~48ms
+- Cold start requests (including fetching JWKS from Azure): 120-300ms
+- Warm requests (with JWKS in cache): ~10ms
+- Actual memory consumption: ~19 MB
 
 
 ## Contributing

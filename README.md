@@ -6,14 +6,14 @@
 
 A high-performance token-based API Gateway authorizer Lambda that can validate OIDC-issued JWT tokens.
 
-![An industrious otter as a logo for this project. Generated with Stable Diffusion (prompt: Intricate illuminated otter made of blown glass catch a fish in the air, breathtaking borderland fantasycore artwork by Android Jones, Jean Baptiste monge, Alberto Seveso, Erin Hanson, Jeremy Mann. maximalist highly detailed and intricate professional_photography, a masterpiece, 8k resolution concept art, Artstation, triadic colors, Unreal Engine 5, cgsociety)](/docs/logo.png)
+![An industrious otter as a logo for this project. Generated with Stable Diffusion (prompt: Intricate illuminated otter made of blown glass catch a fish in the air, breathtaking borderland fantasycore artwork by Android Jones, Jean Baptiste monge, Alberto Seveso, Erin Hanson, Jeremy Mann. maximalist highly detailed and intricate professional_photography, a masterpiece, 8k resolution concept art, Artstation, triadic colors, Unreal Engine 5, cgsociety)](https://github.com/lmammino/oidc-authorizer/raw/main/docs/logo.png)
 
 
 ## 🤌 Use case
 
 This project provides a easy-to-install AWS Lambda function that can be used as a custom authorizer for AWS API Gateway. This authorizer can validate OIDC-issued JWT tokens and it can be used to secure your API endpoints using your OIDC provider of choice (e.g. Apple, Auth0, AWS Cognito, Azure AD / Micsosoft Entra ID, Facebook, GitLab, Google, Keycloak, LinkedIn, Okta, Salesforce, Twitch, etc.).
 
-![A diagram illustrating how this project can be integrated. A user sends an authenticated request to API Gateway. API Gateway is configure to use a custom lambda as an authorizer (THIS PROJECT!). The lambda talks with your OIDC provider to get the public key to validate the user token and responds to API Gateway to Allow or Deny the request.](/docs/lovely-diagram.png)
+![A diagram illustrating how this project can be integrated. A user sends an authenticated request to API Gateway. API Gateway is configure to use a custom lambda as an authorizer (THIS PROJECT!). The lambda talks with your OIDC provider to get the public key to validate the user token and responds to API Gateway to Allow or Deny the request.](https://github.com/lmammino/oidc-authorizer/raw/main/docs/lovely-diagram.png)
 
 > A diagram illustrating how this project can be integrated.
 >
@@ -44,12 +44,12 @@ Different deployment options are available:
 - TODO: Deploy from SAR (Serverless Application Repository) using CDK
 - TODO: build and package yourself
 - TODO: use pre-published binaries and package yourself
-- [Build yourself and deploy using SAM](/examples/sam/template.yml)
+- [Build yourself and deploy using SAM](https://github.com/lmammino/oidc-authorizer/blob/main/examples/sam/template.yml)
 - TODO: use pre-published binaries and deploy using CDK
 - TODO: use pre-published binaries and deploy using Terraform
 - TODO: use pre-published binaries and deploy using CloudFormation one-click templates
 
-If you prefer, you can also learn [how to host your own SAR application](/docs/deploy.md#maintain-your-own-sar-application).
+If you prefer, you can also learn [how to host your own SAR application](https://github.com/lmammino/oidc-authorizer/blob/main/docs/deploy.md#maintain-your-own-sar-application).
 
 
 ## 🛠️ Configuration

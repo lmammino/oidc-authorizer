@@ -1,10 +1,30 @@
 use jsonwebtoken::Algorithm;
 use std::str::FromStr;
+use thiserror::Error;
 
 #[derive(Debug, Clone, Default)]
 pub struct AcceptedAlgorithms(Vec<Algorithm>);
 
-// TODO: limit the valid signing algorithms only to the public-key algorithm ones
+#[derive(Debug, Error)]
+pub enum AcceptedAlgorithmsError {
+    #[error("Invalid algorithm name")]
+    InvalidAlgorithmName(#[from] jsonwebtoken::errors::Error),
+    #[error("Unsupported algorithm '{0:?}'. Only public-key algorithms are supported")]
+    UnsupportedAlgorithm(Algorithm),
+}
+
+static SUPPORTED_ALGORITHMS: &[Algorithm] = &[
+    Algorithm::ES256,
+    Algorithm::ES384,
+    Algorithm::RS256,
+    Algorithm::RS384,
+    Algorithm::RS512,
+    Algorithm::PS256,
+    Algorithm::PS384,
+    Algorithm::PS512,
+    Algorithm::EdDSA,
+];
+
 impl AcceptedAlgorithms {
     pub fn is_accepted(&self, algorithm: &Algorithm) -> bool {
         self.0.is_empty() || self.0.contains(algorithm)
@@ -22,7 +42,7 @@ impl AcceptedAlgorithms {
 }
 
 impl FromStr for AcceptedAlgorithms {
-    type Err = jsonwebtoken::errors::Error;
+    type Err = AcceptedAlgorithmsError;
     fn from_str(algorithms: &str) -> Result<Self, Self::Err> {
         let algorithms = algorithms
             .split(',')
@@ -30,6 +50,12 @@ impl FromStr for AcceptedAlgorithms {
             .filter(|s| !s.is_empty())
             .map(|s| Algorithm::from_str(&s))
             .collect::<Result<Vec<_>, _>>()?;
+
+        for algorithm in &algorithms {
+            if !SUPPORTED_ALGORITHMS.contains(algorithm) {
+                return Err(AcceptedAlgorithmsError::UnsupportedAlgorithm(*algorithm));
+            }
+        }
 
         Ok(Self(algorithms))
     }
@@ -122,8 +148,19 @@ mod tests {
         let accepted_alg: Result<AcceptedAlgorithms, _> = s.parse();
         assert!(accepted_alg.is_err());
         assert_eq!(
-            accepted_alg.unwrap_err().kind(),
-            &jsonwebtoken::errors::ErrorKind::InvalidAlgorithmName
+            accepted_alg.unwrap_err().to_string(),
+            "Invalid algorithm name".to_string()
+        );
+    }
+
+    #[test]
+    fn it_should_not_allow_secret_based_algorithms_to_be_instantiated() {
+        let s = "HS256";
+        let accepted_alg: Result<AcceptedAlgorithms, _> = s.parse();
+        assert!(accepted_alg.is_err());
+        assert_eq!(
+            accepted_alg.unwrap_err().to_string(),
+            "Unsupported algorithm 'HS256'. Only public-key algorithms are supported".to_string()
         );
     }
 }

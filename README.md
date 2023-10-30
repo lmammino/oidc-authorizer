@@ -58,21 +58,58 @@ The authorizer needs to be configured to be adapted to your needs and to be able
 
 Here's a list of the configuration options that are supported:
 
-| **Parameter Name** | **Environment variable** | **Description**                                                                                                                                                                                                                                                                                                    | **Mandatory** | **Default Value**           |
-|--------------------|--------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|-----------------------------|
-| JwksUri            | JWKS_URI                 | The URL of the OIDC provider JWKS (Endpoint providing public keys for verification).                                                                                                                                                                                                                               | Y             |                             |
-| MinRefreshRate     | MIN_REFRESH_RATE         | The minumum number of seconds to wait before keys are refreshed when the given key is not found.                                                                                                                                                                                                                   | N             | `"900"`                     |
-| PrincipalIdClaims  | PRINCIPAL_ID_CLAIMS      | A comma-separated list of claims defining the token fields that should be used to determine the principal Id from the token. The fields will be tested in order. If there's no match the value specified in the `DefaultPrincipalId` parameter will be used.                                                       | N             | `"preferred_username, sub"` |
-| DefaultPrincipalId | DEFAULT_PRINCIPAL_ID     | A fallback value for the Principal ID to be used when a principal ID claim is not found in the token.                                                                                                                                                                                                              | N             | `"unknown"`                 |
-| AcceptedIssuers    | ACCEPTED_ISSUERS         | A comma-separated list of accepted values for the `iss` claim. If one of the provided values matches, the token issuer is considered valid. If left empty, any issuer will be accepted.                                                                                                                            | N             | `""`                        |
-| AcceptedAudiences  | ACCEPTED_AUDIENCES       | A comma-separated list of accepted values for the `aud` claim. If one of the provided values matches, the token audience is considered valid. If left empty, any issuer audience be accepted.                                                                                                                      | N             | `""`                        |
-| AcceptedAlgorithms | ACCEPTED_ALGORITHMS      | A comma-separated list of accepted signing algorithms. If one of the provided values matches, the token signing algorithm is considered valid. If left empty, any supported token signing algorithm is accepted. Supported values: `ES256`, `ES384`, `RS256`, `RS384`, `PS256`, `PS384`, `PS512`, `RS512`, `EdDSA` | N             | `""`                        |
+### JwksUri
+
+- **Environment variable**: `JWKS_URI`
+- **Description**: The URL of the OIDC provider JWKS (Endpoint providing public keys for verification).
+- **Mandatory**: Yes
+
+
+### MinRefreshRate
+
+- **Environment variable**: `MIN_REFRESH_RATE`
+- **Description**: The minumum number of seconds to wait before keys are refreshed when the given key is not found.
+- **Mandatory**: No
+- **Default value**: `"900"` (15 minutes)
+
+### PrincipalIdClaims
+
+- **Environment variable**: `PRINCIPAL_ID_CLAIMS`
+- **Description**: A comma-separated list of claims defining the token fields that should be used to determine the principal Id from the token. The fields will be tested in order. If there's no match the value specified in the `DefaultPrincipalId` parameter will be used.
+- **Mandatory**: No
+- **Default value**: `"preferred_username, sub"`
+
+### DefaultPrincipalId
+
+- **Environment variable**: `DEFAULT_PRINCIPAL_ID`
+- **Description**: A fallback value for the Principal ID to be used when a principal ID claim is not found in the token.
+- **Mandatory**: No
+- **Default value**: `"unknown"`
+
+### AcceptedIssuers
+
+- **Environment variable**: `ACCEPTED_ISSUERS`
+- **Description**: A comma-separated list of accepted values for the `iss` claim. If one of the provided values matches, the token issuer is considered valid. If left empty, any issuer will be accepted.
+- **Mandatory**: No
+- **Default value**: `""`
+
+### AcceptedAudiences
+
+- **Environment variable**: `ACCEPTED_AUDIENCES`
+- **Description**: A comma-separated list of accepted values for the `aud` claim. If one of the provided values matches, the token audience is considered valid. If left empty, any issuer audience be accepted.
+- **Mandatory**: No
+- **Default value**: `""`
+
+### AcceptedAlgorithms
+
+- **Environment variable**: `ACCEPTED_ALGORITHMS`
+- **Description**: A comma-separated list of accepted signing algorithms. If one of the provided values matches, the token signing algorithm is considered valid. If left empty, any supported token signing algorithm is accepted. Supported values: `ES256`, `ES384`, `RS256`, `RS384`, `PS256`, `PS384`, `PS512`, `RS512`, `EdDSA`
+- **Mandatory**: No
+- **Default value**: `""`
 
 
 ## ⚠️ WIP
 
-- TODO: document installation process
-- TODO: document supported algorithms
 - TODO: document validation flow
 - TODO: document what gets added into the context and how it can be used for app-level authentication
 - TODO: benchmarks
@@ -95,6 +132,7 @@ Licensed under [MIT License](LICENSE). © Luciano Mammino.
 
 Big thanks to:
 
-- [@Lodewyk11](https://github.com/Lodewyk11) & [@gsingh1](https://github.com/gsingh1) for writing the original Python implementation that inspired this work
-- [@allevo](https://github.com/allevo) for tons of great Rust suggestions
+- [@Lodewyk11](https://github.com/Lodewyk11) & [@gsingh1](https://github.com/gsingh1) for writing the original Python implementation that inspired this work.
+- [@eoinsha](https://github.com/eoinsha) for suggesting [various ways to package and distribute this project](https://awsbites.com/101-package-and-distribute-lambda-functions-for-fun-and-profit/).
+- [@allevo](https://github.com/allevo) for tons of great Rust suggestions.
 - [@alexdebrie](https://github.com/alexdebrie) for his amazing [article on custom ApiGateway Authorizers](https://www.alexdebrie.com/posts/lambda-custom-authorizers/).

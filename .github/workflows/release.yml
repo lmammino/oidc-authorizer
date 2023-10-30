@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  # TODO: add on release creation
+  workflow_dispatch: {}
+
+env:
+  AWS_REGION: eu-west-1
+  SAR_ARTIFACT_BUCKET: ${{ secrets.SAR_ARTIFACT_BUCKET }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v3
+
+      - uses: aws-actions/setup-sam@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_REPO_ROLE_ARN }}
+          aws-region: eu-west-1
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+  
+      - name: Install zig
+        uses: goto-bus-stop/setup-zig@v2
+  
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin
+            target
+          key: ${{ runner.os }}-release-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install cargo lambda
+        run: |
+          if [ ! -f  ~/.cargo/bin/cargo-lambda ]
+          then
+            cargo install --locked cargo-lambda
+          else
+            echo "Cargo Lambda already installed"
+          fi
+
+      - name: Sam build
+        run: |
+          sam build
+          sam package --output-template-file .aws-sam/packaged.yml --s3-bucket ${{ secrets.SAR_ARTIFACT_BUCKET }}
+
+      - name: Sam publish
+        run: sam publish --template .aws-sam/packaged.yml --region eu-west-1

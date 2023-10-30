@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "Provision the services required to setup the CI/CD using GitHub actions for lmammino/oidc-authorizer"
+
+Parameters:
+  GitHubThumbprint:
+    Type: String
+    Description: The thumbprint of the GitHub TLS certificate
+    Default: "1b511abead59c6ce207077c0bf0e0043b1382612" # Might need to be refreshed when the cert is rotated
+  GitHubRepoName:
+    Type: String
+    Description: The name of the repository
+    Default: "lmammino/oidc-authorizer"
+
+Resources:
+  SarArtifactsBucket:
+    Type: AWS::S3::Bucket
+
+  SarArtifactBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SarArtifactsBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: serverlessrepo.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub arn:aws:s3:::${SarArtifactsBucket}/*
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref "AWS::AccountId"
+
+  GitHubOIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: "https://token.actions.githubusercontent.com"
+      ClientIdList:
+        - "sts.amazonaws.com"
+      ThumbprintList:
+        - !Ref GitHubThumbprint
+
+  GitHubIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: "/"
+      RoleName: GitHubActionLmamminoOidcProvider
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRoleWithWebIdentity
+            Principal:
+              Federated: !Ref GitHubOIDCProvider
+            Condition:
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepoName}:*
+      MaxSessionDuration: 3600
+      Description: !Sub "Github Actions role for ${GitHubRepoName}"
+      Policies:
+        - PolicyName: "AllowWriteToSarArtifactsBucket"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:PutObject*"
+                Resource:
+                  - !Sub "arn:aws:s3:::${SarArtifactsBucket}/*"
+
+Outputs:
+  SarArtifactsBucket:
+    Description: The name of the generated SAR artifacts bucket
+    Value: !Ref SarArtifactsBucket
+  GitHubIamRoleArn:
+    Description: The ARN of the role that needs to be assumed by GitHub
+    Value: !GetAtt GitHubIAMRole.Arn

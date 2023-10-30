@@ -1,0 +1,14 @@
+version = 0.1
+[default.deploy.parameters]
+stack_name = "lmammino-oidc-authorized-github-actions"
+resolve_s3 = true
+s3_prefix = "lmammino-oidc-authorized-github-actions"
+region = "eu-west-1"
+confirm_changeset = true
+capabilities = [
+  "CAPABILITY_AUTO_EXPAND",
+  "CAPABILITY_NAMED_IAM",
+  "CAPABILITY_IAM",
+]
+parameter_overrides = "GitHubThumbprint=\"1b511abead59c6ce207077c0bf0e0043b1382612\" GitHubRepoName=\"lmammino/oidc-authorizer\""
+image_repositories = []

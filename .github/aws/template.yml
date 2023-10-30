@@ -66,6 +66,20 @@ Resources:
                   - "s3:PutObject*"
                 Resource:
                   - !Sub "arn:aws:s3:::${SarArtifactsBucket}/*"
+        - PolicyName: "PublishToSar"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "serverlessrepo:CreateApplication"
+                  - "serverlessrepo:UpdateApplication"
+                  - "serverlessrepo:ListApplicationVersions"
+                  - "serverlessrepo:CreateApplicationVersion"
+                  - "serverlessrepo:GetApplicationPolicy"
+                  - "serverlessrepo:PutApplicationPolicy"
+                Resource:
+                  - !Sub "arn:aws:serverlessrepo:*:${AWS::AccountId}:applications/oidc-authorizer"
 
 Outputs:
   SarArtifactsBucket:

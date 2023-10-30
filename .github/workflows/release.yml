@@ -1,8 +1,9 @@
 name: Release
 
 on:
-  # TODO: add on release creation
   workflow_dispatch: {}
+  release:
+    types: [created]
 
 env:
   AWS_REGION: eu-west-1
@@ -60,5 +61,20 @@ jobs:
           sam build
           sam package --output-template-file .aws-sam/packaged.yml --s3-bucket ${{ secrets.SAR_ARTIFACT_BUCKET }}
 
-      - name: Sam publish
+      - name: Compress bootstrap
+        working-directory: .aws-sam/build/OidcAuthorizer
+        run: |
+          zip -9 bootstrap.zip bootstrap
+
+      - name: Upload bootstrap.zip to GitHub release
+        uses: xresloader/upload-to-github-release@v1
+        if: github.event.release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: ".aws-sam/build/OidcAuthorizer/bootstrap.zip"
+          tags: true
+          draft: true
+
+      - name: Sam publish to SAR
         run: sam publish --template .aws-sam/packaged.yml --region eu-west-1

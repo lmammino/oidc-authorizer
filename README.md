@@ -9,7 +9,7 @@ A high-performance token-based API Gateway authorizer Lambda that can validate O
 ![An industrious otter as a logo for this project. Generated with Stable Diffusion (prompt: Intricate illuminated otter made of blown glass catch a fish in the air, breathtaking borderland fantasycore artwork by Android Jones, Jean Baptiste monge, Alberto Seveso, Erin Hanson, Jeremy Mann. maximalist highly detailed and intricate professional_photography, a masterpiece, 8k resolution concept art, Artstation, triadic colors, Unreal Engine 5, cgsociety)](/docs/logo.png)
 
 
-## Use case
+## 🤌 Use case
 
 This project provides a easy-to-install AWS Lambda function that can be used as a custom authorizer for AWS API Gateway. This authorizer can validate OIDC-issued JWT tokens and it can be used to secure your API endpoints using your OIDC provider of choice (e.g. Apple, Auth0, AWS Cognito, Azure AD / Micsosoft Entra ID, Facebook, GitLab, Google, Keycloak, LinkedIn, Okta, Salesforce, Twitch, etc.).
 
@@ -29,12 +29,12 @@ You might want to consider using this project in the following cases:
 - You want to customise the validation process even further. In this case, you can fork this project and customise the validation logic to your needs.
 
 
-## Design goals
+## ⚽️ Design goals
 
 This custom Lambda Authorizer is designed to be **easy to install and configure**, **cheap**, **highly performant**, and **memory-efficient**. It is currently written in Rust, which is currently the fastest lambda Runtime in terms of cold start and it produces binaries that can provide best-in-class execution performance and a low memory footprint. Rust makes it also easy to compile the Authorizer Lambda for ARM, which helps even further with performance and cost. Ideally this Lambda, should provide minimal cost, even when used to protect Lambda functions that are invoked very frequently.
 
 
-## Installation
+## 🚀 Installation
 
 This project is meant to be integrated into existing applications (after all, an authorizer is useless without an API).
 
@@ -52,7 +52,7 @@ Different deployment options are available:
 If you prefer, you can also learn [how to host your own SAR application](/docs/deploy.md#maintain-your-own-sar-application).
 
 
-## Configuration
+## 🛠️ Configuration
 
 The authorizer needs to be configured to be adapted to your needs and to be able to communicate with your OIDC provider of choice.
 
@@ -108,7 +108,7 @@ Here's a list of the configuration options that are supported:
 - **Default value**: `""`
 
 
-## Validation Flow
+## 🛑 Validation Flow
 
 The following section describes the steps that are followed to validate a token:
 
@@ -121,7 +121,7 @@ The following section describes the steps that are followed to validate a token:
   7. If all these checks are passed, the token is considered valid and the request is allowed to proceed. The principal ID is extracted from the token using the list of principal ID claims. If no principal ID claim is found, the default principal ID is used.
 
 
-## Context Enrichment
+## 🤑 Context Enrichment
 
 The authorizer enriches the context of the request with the following values:
 
@@ -149,7 +149,7 @@ def handler(event, context):
 ```
 
 
-## Benchmarks
+## 🏃‍♂️ Benchmarks
 
 Proper benchmarks are yet to be written (SORRY 😇), but for now, to prove that this Lambda is still reasonable fast, here's some data observed during some manual tests (128 MB Memory deployment):
 
@@ -159,19 +159,19 @@ Proper benchmarks are yet to be written (SORRY 😇), but for now, to prove that
 - Actual memory consumption: ~19 MB
 
 
-## Contributing
+## 🙌 Contributing
 
 Everyone is very welcome to contribute to this project.
 You can contribute just by submitting bugs or suggesting improvements by
 [opening an issue on GitHub](https://github.com/lmammino/oidc-authorizer/issues).
 
 
-## License
+## 👨‍⚖️ License
 
 Licensed under [MIT License](LICENSE). © Luciano Mammino.
 
 
-## Acknowledgements
+## 🙏 Acknowledgements
 
 Big thanks to:
 

@@ -78,14 +78,12 @@ jobs:
             target
           key: ${{ runner.os }}-rust-build-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install cargo lambda
-        run: |
-          if [ ! -f  ~/.cargo/bin/cargo-lambda ]
-          then
-            cargo install --locked cargo-lambda
-          else
-            echo "Cargo Lambda already installed"
-          fi
+      - name: Install Cargo Lambda
+        uses: jaxxstorm/action-install-gh-release@v1.9.0
+        with:
+          repo: cargo-lambda/cargo-lambda
+          platform: linux
+          arch: x86_64
 
       - name: Run cargo lambda build
         run: cargo lambda build --locked --release

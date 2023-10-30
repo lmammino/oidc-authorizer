@@ -73,6 +73,10 @@ Resources:
               - Effect: Allow
                 Action:
                   - "serverlessrepo:CreateApplication"
+                Resource:
+                  - !Sub "arn:aws:serverlessrepo:*:${AWS::AccountId}:applications/*"
+              - Effect: Allow
+                Action:
                   - "serverlessrepo:UpdateApplication"
                   - "serverlessrepo:ListApplicationVersions"
                   - "serverlessrepo:CreateApplicationVersion"

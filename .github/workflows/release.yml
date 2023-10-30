@@ -71,8 +71,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           file: ".aws-sam/build/OidcAuthorizer/bootstrap.zip"
-          tags: true
-          draft: true
 
       - name: Sam publish to SAR
         run: sam publish --template .aws-sam/packaged.yml --region eu-west-1

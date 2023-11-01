@@ -82,7 +82,7 @@ jobs:
 
       - name: Upload bootstrap.zip to (new draft) GitHub release
         uses: xresloader/upload-to-github-release@v1
-        if: !github.event.release
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -91,6 +91,7 @@ jobs:
           default_release_name: "Manual release (test)"
 
       - name: Sam publish to SAR
+        if: github.event.release
         run: |
           sam package --output-template-file .aws-sam/packaged.yml --s3-bucket ${{ secrets.SAR_ARTIFACT_BUCKET }}
           sam publish --template .aws-sam/packaged.yml --region eu-west-1

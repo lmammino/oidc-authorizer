@@ -68,6 +68,8 @@ jobs:
 
       - name: Install zig
         uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.10.0
 
       - uses: actions/cache@v3
         with:

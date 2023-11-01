@@ -62,8 +62,8 @@ A full example is available in the [`examples` folder](https://github.com/lmammi
 TODO:...
 
 
-> **Note**: 
-> If you don't want to use the public SAR application, you can [publish your own](#maintain-your-own-sar-application).
+> **Note**
+If you don't want to use the public SAR application, you can [publish your own](#maintain-your-own-sar-application).
 
 
 ## Download a pre-built binary from GitHub
@@ -89,9 +89,8 @@ Runtime: provided.al2
 Architectures: [arm64]
 ```
 
-> **Note**:
->
-> `x86` binaries are currently not provided. If you want to use those, you have to build them by yourself.
+> **Note**
+`x86` binaries are currently not provided. If you want to use those, you have to build them by yourself.
 
 
 ## Build the binary yourself
@@ -105,8 +104,7 @@ cargo lambda build --arm64 --release
 The compiled binary will be available in `target/lambda/oidc-authorizer/bootstrap`.
 
 > **Note**:
->
-> `cargo lambda` also allows you to cross-compile for other architectures and operative systems. [Check out the official documentation to learn how to do that](https://www.cargo-lambda.info/guide/cross-compiling.html).
+`cargo lambda` also allows you to cross-compile for other architectures and operative systems. [Check out the official documentation to learn how to do that](https://www.cargo-lambda.info/guide/cross-compiling.html).
 
 
 ## Other approaches

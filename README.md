@@ -2,7 +2,7 @@
 
 [![Rust](https://github.com/lmammino/oidc-authorizer/actions/workflows/rust.yml/badge.svg)](https://github.com/lmammino/oidc-authorizer/actions/workflows/rust.yml)
 [![codecov](https://codecov.io/gh/lmammino/oidc-authorizer/graph/badge.svg?token=P9bsrl4YQB)](https://codecov.io/gh/lmammino/oidc-authorizer)
-[![Published on SAR: Serverless Application Repository](https://img.shields.io/badge/SAR-Serverless%20Application%20Repository-blue)](https://serverlessrepo.aws.amazon.com/applications/eu-west-1/795006566846/oidc-authorizer)
+[![Published on SAR: Serverless Application Repository](https://img.shields.io/badge/SAR-Serverless%20Application%20Repository-FF9900)](https://serverlessrepo.aws.amazon.com/applications/eu-west-1/795006566846/oidc-authorizer)
 
 
 A high-performance token-based API Gateway authorizer Lambda that can validate OIDC-issued JWT tokens.

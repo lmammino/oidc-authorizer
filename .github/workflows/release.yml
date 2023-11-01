@@ -43,6 +43,8 @@ jobs:
   
       - name: Install zig
         uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.10.0
   
       - uses: actions/cache@v3
         with:
@@ -69,7 +71,7 @@ jobs:
         run: |
           zip -9 bootstrap.zip bootstrap
 
-      - name: Upload bootstrap.zip to GitHub release
+      - name: Upload bootstrap.zip to (existing) GitHub release
         uses: xresloader/upload-to-github-release@v1
         if: github.event.release
         env:
@@ -77,6 +79,16 @@ jobs:
         with:
           file: ".aws-sam/build/OidcAuthorizer/bootstrap.zip"
           release_id: ${{ github.event.release.id }}
+
+      - name: Upload bootstrap.zip to (new draft) GitHub release
+        uses: xresloader/upload-to-github-release@v1
+        if: !github.event.release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: ".aws-sam/build/OidcAuthorizer/bootstrap.zip"
+          draft: true
+          default_release_name: "Manual release (test)"
 
       - name: Sam publish to SAR
         run: |

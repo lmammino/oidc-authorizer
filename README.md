@@ -38,9 +38,13 @@ This custom Lambda Authorizer is designed to be **easy to install and configure*
 
 This project is meant to be integrated into existing applications (after all, an authorizer is useless without an API).
 
-Different deployment options are available:
 
-- TODO: Deploy from SAR (Serverless Application Repository) using SAM
+
+Different deployment options are available. Check out the [deployment docs](https://github.com/lmammino/oidc-authorizer/blob/main/docs/deploy.md) for an extensive explaination of all the possible approaches.
+
+Alternatively, you can also consult some of the quick examples listed below:
+
+- [Deploy from SAR (Serverless Application Repository) using SAM](https://github.com/lmammino/oidc-authorizer/blob/main/examples/sam-from-sar/template.yml)
 - TODO: Deploy from SAR (Serverless Application Repository) using CDK
 - TODO: build and package yourself
 - TODO: use pre-published binaries and package yourself

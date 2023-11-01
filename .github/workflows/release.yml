@@ -57,7 +57,6 @@ jobs:
       - name: Sam build
         run: |
           sam build
-          sam package --output-template-file .aws-sam/packaged.yml --s3-bucket ${{ secrets.SAR_ARTIFACT_BUCKET }}
 
       - name: Compress bootstrap
         working-directory: .aws-sam/build/OidcAuthorizer
@@ -71,6 +70,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           file: ".aws-sam/build/OidcAuthorizer/bootstrap.zip"
+          release_id: github.event.release.id
 
       - name: Sam publish to SAR
-        run: sam publish --template .aws-sam/packaged.yml --region eu-west-1
+        run: |
+          sam package --output-template-file .aws-sam/packaged.yml --s3-bucket ${{ secrets.SAR_ARTIFACT_BUCKET }}
+          sam publish --template .aws-sam/packaged.yml --region eu-west-1

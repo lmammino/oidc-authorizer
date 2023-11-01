@@ -1,9 +1,9 @@
-# An example on how to package the authorizer in your own SAM-managed stack
+# An example on how to use the authorizer from SAR in a SAM application
 #
 # Edit the details below and then deploy with:
 #
 # ```bash
-# sam build --beta-features --template examples/sam/template.yml
+# sam build --beta-features --template examples/sam-from-sar/template.yml
 # sam deploy --template .aws-sam/build/template.yaml --guided --capabilities CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM CAPABILITY_IAM
 # ```
 #
@@ -18,68 +18,38 @@ Transform: AWS::Serverless-2016-10-31
 Description: AWS SAM template with a simple API definition
 
 Resources:
+  # The oidc-authorizer imported from SAR
+  oidcauthorizer:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location:
+        ApplicationId: arn:aws:serverlessrepo:eu-west-1:795006566846:applications/oidc-authorizer
+        SemanticVersion: 0.0.2 # 👀 CHANGE ME
+      Parameters:
+        # 👀 CHANGE THE FOLLOWING PARAMETERS
+        AcceptedAlgorithms: ""
+        AcceptedAudiences: ""
+        AcceptedIssuers: ""
+        DefaultPrincipalId: "unknown"
+        JwksUri: "https://login.microsoftonline.com/3e4abf5a-fdc9-485c-9853-af03c4a32976/discovery/v2.0/keys"
+        MinRefreshRate: "900"
+        PrincipalIdClaims: "preferred_username, sub"
+        # The amount of memory (in MB) to give to the authorizer Lambda.
+        LambdaMemorySize: "128"
+        # The timeout to give to the authorizer Lambda.
+        LambdaTimeout: "3"
+
+  # YOUR APIs HERE
   ApiGatewayApi:
     Type: AWS::Serverless::Api
-    DependsOn: ApiCWLRoleArn
     Properties:
       StageName: prod
       Description: A demo app to test the OIDC authorizer # 👀 CHANGE IF NEEDED
-      # 👀 CHANGE IF NEEDED: enable traces and logs (best practice)
-      TracingEnabled: true
-      MethodSettings:
-        - HttpMethod: "*"
-          LoggingLevel: INFO
-          ResourcePath: "/*"
-          MetricsEnabled: true
-          DataTraceEnabled: true
       Auth:
         DefaultAuthorizer: OidcAuthorizer
         Authorizers:
           OidcAuthorizer:
-            FunctionArn: !GetAtt OidcLambdaAuthorizer.Arn
-
-  ApiCWLRoleArn:
-    Type: AWS::ApiGateway::Account
-    Properties:
-      CloudWatchRoleArn: !GetAtt CloudWatchRole.Arn
-
-  CloudWatchRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          Action: "sts:AssumeRole"
-          Effect: Allow
-          Principal:
-            Service: apigateway.amazonaws.com
-      Path: /
-      ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
-
-  # Authorizer Lambda
-  OidcLambdaAuthorizer:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: rust-cargolambda
-    Properties:
-      CodeUri: ../..
-      Handler: bootstrap
-      Runtime: provided.al2
-      Timeout: 3 # 👀 CHANGE IF NEEDED
-      MemorySize: 128 # 👀 CHANGE IF NEEDED
-      Architectures:
-        - arm64
-      Environment:
-        Variables:
-          # 👀 CHANGE THE FOLLOWING VALUES:
-          JWKS_URI: "https://login.microsoftonline.com/3e4abf5a-fdc9-485c-9853-af03c4a32976/discovery/v2.0/keys"
-          MIN_REFRESH_RATE: "900"
-          PRINCIPAL_ID_CLAIMS: "preferred_username, sub"
-          DEFAULT_PRINCIPAL_ID: "unknown"
-          ACCEPTED_ISSUERS: "https://login.microsoftonline.com/3e4abf5a-fdc9-485c-9853-af03c4a32976/v2.0"
-          ACCEPTED_AUDIENCES: "5c8efa13-dfa5-48b5-83c3-6fe8bb819a0f"
-          ACCEPTED_ALGORITHMS: ""
+            FunctionArn: !GetAtt oidcauthorizer.Outputs.OidcAuthorizerArn
 
   # 👀 CHANGE: Define your APIs here
   SampleApiFunction1:

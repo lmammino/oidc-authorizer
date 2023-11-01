@@ -24,7 +24,7 @@ Resources:
     Properties:
       Location:
         ApplicationId: arn:aws:serverlessrepo:eu-west-1:795006566846:applications/oidc-authorizer
-        SemanticVersion: 0.0.3 # 👀 CHANGE ME
+        SemanticVersion: 0.0.4 # 👀 CHANGE ME
       Parameters:
         # 👀 CHANGE THE FOLLOWING PARAMETERS
         AcceptedAlgorithms: ""

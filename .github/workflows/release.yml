@@ -18,6 +18,12 @@ jobs:
       contents: write
 
     steps:
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+          echo "$GITHUB_CONTEXT"
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v3
@@ -70,7 +76,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           file: ".aws-sam/build/OidcAuthorizer/bootstrap.zip"
-          release_id: github.event.release.id
+          release_id: ${{ github.event.release.id }}
 
       - name: Sam publish to SAR
         run: |

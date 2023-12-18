@@ -12,7 +12,7 @@ A high-performance token-based API Gateway authorizer Lambda that can validate O
 
 ## 🤌 Use case
 
-This project provides a easy-to-install AWS Lambda function that can be used as a custom authorizer for AWS API Gateway. This authorizer can validate OIDC-issued JWT tokens and it can be used to secure your API endpoints using your OIDC provider of choice (e.g. Apple, Auth0, AWS Cognito, Azure AD / Micsosoft Entra ID, Facebook, GitLab, Google, Keycloak, LinkedIn, Okta, Salesforce, Twitch, etc.).
+This project provides an easy-to-install AWS Lambda function that can be used as a custom authorizer for AWS API Gateway. This authorizer can validate OIDC-issued JWT tokens and it can be used to secure your API endpoints using your OIDC provider of choice (e.g. Apple, Auth0, AWS Cognito, Azure AD / Microsoft Entra ID, Facebook, GitLab, Google, Keycloak, LinkedIn, Okta, Salesforce, Twitch, etc.).
 
 ![A diagram illustrating how this project can be integrated. A user sends an authenticated request to API Gateway. API Gateway is configured to use a custom lambda as an authorizer (THIS PROJECT!). The lambda talks with your OIDC provider to get the public key to validate the user token and responds to API Gateway to Allow or Deny the request.](https://github.com/lmammino/oidc-authorizer/raw/main/docs/lovely-diagram.png)
 
@@ -39,20 +39,9 @@ This custom Lambda Authorizer is designed to be **easy to install and configure*
 
 This project is meant to be integrated into existing applications (after all, an authorizer is useless without an API).
 
+Different deployment options are available. Check out the [deployment docs](https://github.com/lmammino/oidc-authorizer/blob/main/docs/deploy.md) for an extensive explanation of all the possible approaches.
 
-
-Different deployment options are available. Check out the [deployment docs](https://github.com/lmammino/oidc-authorizer/blob/main/docs/deploy.md) for an extensive explaination of all the possible approaches.
-
-Alternatively, you can also consult some of the quick examples listed below:
-
-- [Deploy from SAR (Serverless Application Repository) using SAM](https://github.com/lmammino/oidc-authorizer/blob/main/examples/sam-from-sar/template.yml)
-- TODO: Deploy from SAR (Serverless Application Repository) using CDK
-- TODO: build and package yourself
-- TODO: use pre-published binaries and package yourself
-- [Build yourself and deploy using SAM](https://github.com/lmammino/oidc-authorizer/blob/main/examples/sam/template.yml)
-- TODO: use pre-published binaries and deploy using CDK
-- TODO: use pre-published binaries and deploy using Terraform
-- TODO: use pre-published binaries and deploy using CloudFormation one-click templates
+Alternatively, you can also consult some of the quick examples in the [`examples` folder](https://github.com/lmammino/oidc-authorizer/blob/main/examples)
 
 If you prefer, you can also learn [how to host your own SAR application](https://github.com/lmammino/oidc-authorizer/blob/main/docs/deploy.md#maintain-your-own-sar-application).
 
@@ -73,7 +62,7 @@ Here's a list of the configuration options that are supported:
 ### MinRefreshRate
 
 - **Environment variable**: `MIN_REFRESH_RATE`
-- **Description**: The minumum number of seconds to wait before keys are refreshed when the given key is not found.
+- **Description**: The minimum number of seconds to wait before keys are refreshed when the given key is not found.
 - **Mandatory**: No
 - **Default value**: `"900"` (15 minutes)
 
@@ -133,11 +122,11 @@ The authorizer enriches the context of the request with the following values:
 - `principalId`: the principal ID extracted from the token.
 - `jwtClaims`: a JSON string containing the entire token payload (claims).
 
-These values are injected into the context of the request and can be used to enrich your logging, tracing  or to implement app-level authentication.
+These values are injected into the context of the request and can be used to enrich your logging, tracing or to implement app-level authentication.
 
 When you use the [Lambda-proxy integration](https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-create-api-as-simple-proxy) these values are made available under `event.requestContext.authorizer`.
 
-For example this is how you can access the `principalId` and `jwtClaims` values in a Lambda function written in Python:
+For example, this is how you can access the `principalId` and `jwtClaims` values in a Lambda function written in Python:
 
 ```python
 import json
@@ -156,7 +145,7 @@ def handler(event, context):
 
 ## 🏃‍♂️ Benchmarks
 
-Proper benchmarks are yet to be written (SORRY 😇), but for now, to prove that this Lambda is still reasonable fast, here's some data observed during some manual tests (128 MB Memory deployment):
+Proper benchmarks are yet to be written (SORRY 😇), but for now, to prove that this Lambda is still reasonably fast, here's some data observed during some manual tests (128 MB Memory deployment):
 
 - Cold start times: ~48ms
 - Cold start requests (including fetching JWKS from Azure): 120-300ms

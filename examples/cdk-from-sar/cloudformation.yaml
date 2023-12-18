@@ -1,0 +1,491 @@
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  AuthorizerApp:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location:
+        ApplicationId: arn:aws:serverlessrepo:eu-west-1:795006566846:applications/oidc-authorizer
+        SemanticVersion: 0.0.4
+      Parameters:
+        AcceptedAlgorithms: ""
+        AcceptedAudiences: ""
+        AcceptedIssuers: ""
+        DefaultPrincipalId: unknown
+        JwksUri: https://login.microsoftonline.com/3e4abf5a-fdc9-485c-9853-af03c4a32976/discovery/v2.0/keys
+        MinRefreshRate: "900"
+        PrincipalIdClaims: preferred_username, sub
+        LambdaMemorySize: "128"
+        LambdaTimeout: "3"
+    Metadata:
+      aws:cdk:path: CdkStack/AuthorizerApp
+  AuthorizerBD825682:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      AuthorizerResultTtlInSeconds: 300
+      AuthorizerUri:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Fn::Select:
+                - 1
+                - Fn::Split:
+                    - ":"
+                    - Fn::GetAtt:
+                        - AuthorizerApp
+                        - Outputs.OidcAuthorizerArn
+            - ":apigateway:"
+            - Fn::Select:
+                - 3
+                - Fn::Split:
+                    - ":"
+                    - Fn::GetAtt:
+                        - AuthorizerApp
+                        - Outputs.OidcAuthorizerArn
+            - :lambda:path/2015-03-31/functions/
+            - Fn::GetAtt:
+                - AuthorizerApp
+                - Outputs.OidcAuthorizerArn
+            - /invocations
+      IdentitySource: method.request.header.Authorization
+      Name: OidcAuthorizer
+      RestApiId:
+        Ref: apiC8550315
+      Type: TOKEN
+    Metadata:
+      aws:cdk:path: CdkStack/Authorizer/Resource
+  apiC8550315:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: A demo app to test the OIDC authorizer
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Name: OIDC Authorizer Demo
+    Metadata:
+      aws:cdk:path: CdkStack/api/Resource
+  apiDeployment149F1294fa23010acd6c6cfc40f88a7715a97da0:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      Description: A demo app to test the OIDC authorizer
+      RestApiId:
+        Ref: apiC8550315
+    DependsOn:
+      - api1GETC9B5EB93
+      - api198080521
+      - api2GET6EAF9814
+      - api2FB7A46B5
+      - AuthorizerBD825682
+    Metadata:
+      aws:cdk:path: CdkStack/api/Deployment/Resource
+  apiDeploymentStageprod896C8101:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId:
+        Ref: apiDeployment149F1294fa23010acd6c6cfc40f88a7715a97da0
+      MethodSettings:
+        - DataTraceEnabled: true
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          MetricsEnabled: true
+          ResourcePath: /*
+      RestApiId:
+        Ref: apiC8550315
+      StageName: prod
+      TracingEnabled: true
+    Metadata:
+      aws:cdk:path: CdkStack/api/DeploymentStage.prod/Resource
+  api198080521:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - apiC8550315
+          - RootResourceId
+      PathPart: "1"
+      RestApiId:
+        Ref: apiC8550315
+    Metadata:
+      aws:cdk:path: CdkStack/api/Default/1/Resource
+  api1GETApiPermissionCdkStackapi621B3AACGET10F23FEED:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - sampleApiLambda1D400C123
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: apiC8550315
+            - /
+            - Ref: apiDeploymentStageprod896C8101
+            - /GET/1
+    Metadata:
+      aws:cdk:path: CdkStack/api/Default/1/GET/ApiPermission.CdkStackapi621B3AAC.GET..1
+  api1GETApiPermissionTestCdkStackapi621B3AACGET1F0F84B75:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - sampleApiLambda1D400C123
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: apiC8550315
+            - /test-invoke-stage/GET/1
+    Metadata:
+      aws:cdk:path: CdkStack/api/Default/1/GET/ApiPermission.Test.CdkStackapi621B3AAC.GET..1
+  api1GETC9B5EB93:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: CUSTOM
+      AuthorizerId:
+        Ref: AuthorizerBD825682
+      HttpMethod: GET
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - sampleApiLambda1D400C123
+                  - Arn
+              - /invocations
+      ResourceId:
+        Ref: api198080521
+      RestApiId:
+        Ref: apiC8550315
+    Metadata:
+      aws:cdk:path: CdkStack/api/Default/1/GET/Resource
+  api2FB7A46B5:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - apiC8550315
+          - RootResourceId
+      PathPart: "2"
+      RestApiId:
+        Ref: apiC8550315
+    Metadata:
+      aws:cdk:path: CdkStack/api/Default/2/Resource
+  api2GETApiPermissionCdkStackapi621B3AACGET28201AE47:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - sampleApiLambda2CD2145FA
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: apiC8550315
+            - /
+            - Ref: apiDeploymentStageprod896C8101
+            - /GET/2
+    Metadata:
+      aws:cdk:path: CdkStack/api/Default/2/GET/ApiPermission.CdkStackapi621B3AAC.GET..2
+  api2GETApiPermissionTestCdkStackapi621B3AACGET2FFD20B2A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - sampleApiLambda2CD2145FA
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: apiC8550315
+            - /test-invoke-stage/GET/2
+    Metadata:
+      aws:cdk:path: CdkStack/api/Default/2/GET/ApiPermission.Test.CdkStackapi621B3AAC.GET..2
+  api2GET6EAF9814:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: CUSTOM
+      AuthorizerId:
+        Ref: AuthorizerBD825682
+      HttpMethod: GET
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - sampleApiLambda2CD2145FA
+                  - Arn
+              - /invocations
+      ResourceId:
+        Ref: api2FB7A46B5
+      RestApiId:
+        Ref: apiC8550315
+    Metadata:
+      aws:cdk:path: CdkStack/api/Default/2/GET/Resource
+  sampleApiLambda1ServiceRole592A5257:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkStack/sampleApiLambda1/ServiceRole/Resource
+  sampleApiLambda1D400C123:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          
+          def handler(event, context):
+            return {'body': 'Hello from endpoint1!', 'statusCode': 200}
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - sampleApiLambda1ServiceRole592A5257
+          - Arn
+      Runtime: python3.9
+    DependsOn:
+      - sampleApiLambda1ServiceRole592A5257
+    Metadata:
+      aws:cdk:path: CdkStack/sampleApiLambda1/Resource
+  sampleApiLambda2ServiceRole7C21309E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkStack/sampleApiLambda2/ServiceRole/Resource
+  sampleApiLambda2CD2145FA:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          
+          def handler(event, context):
+            return {'body': 'Hello ' + event['requestContext']['authorizer']['principalId'] + ' from endpoint2!
+          These are your claims: ' + event['requestContext']['authorizer']['jwtClaims'], 'statusCode': 200}
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - sampleApiLambda2ServiceRole7C21309E
+          - Arn
+      Runtime: python3.9
+    DependsOn:
+      - sampleApiLambda2ServiceRole7C21309E
+    Metadata:
+      aws:cdk:path: CdkStack/sampleApiLambda2/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/22QOU8DMRCFfwu91zkkipRLEB0CbdKjiT2EyfqSj0TB2v8eO2alFFTzveenObzmq9UzXz7BJXRCjp2iA8+7CGJkxfrKATTffpveOUUCIlnDFOiDBJ7fkhHVeIGArGQ+0WsKoUbmp2rPPDFwdISIF7jyvLcjmj7FH+vpF30NPqgBQ+wdVXfGV3TKXjWaWN0HVZY93uc3KHmbvMD7VrP4a9T4HcscWa1GE6NyZB6sarlSp6nSR4ouxf+bFN5aI6ldZqxEfgqL83rJN+U3T4Go88lE0siHVm/FMheGagEAAA==
+    Metadata:
+      aws:cdk:path: CdkStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  apiEndpoint9349E63C:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: apiC8550315
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: apiDeploymentStageprod896C8101
+          - /
+  ApiEndpoint1:
+    Description: API Gateway endpoint 1
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: apiC8550315
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: apiDeploymentStageprod896C8101
+          - /1
+  ApiEndpoint2:
+    Description: API Gateway endpoint 2
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: apiC8550315
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: apiDeploymentStageprod896C8101
+          - /2
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

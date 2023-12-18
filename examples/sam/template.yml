@@ -118,11 +118,11 @@ Resources:
 
 Outputs:
   ApiBaseUrl:
-    Description: "API Gateway endpoint"
+    Description: "API Gateway base URL"
     Value: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
   ApiEndpoint1:
-    Description: "API Gateway endpoint"
+    Description: "API Gateway endpoint 1"
     Value: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/prod/1"
   ApiEndpoint2:
-    Description: "API Gateway endpoint"
+    Description: "API Gateway endpoint 2"
     Value: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/prod/2"

@@ -125,7 +125,7 @@ const sampleApiLambda2 = new aws_lambda.Function(this, 'sampleApiLambda2', {
   handler: 'index.handler',
   code: aws_lambda.Code.fromInline(`
 def handler(event, context):
-return {'body': 'Hello ' + event['requestContext']['authorizer']['principalId'] + ' from endpoint2!\nThese are your claims: ' + event['requestContext']['authorizer']['jwtClaims'], 'statusCode': 200}
+return {'body': 'Hello ' + event['requestContext']['authorizer']['principalId'] + ' from endpoint2! These are your claims: ' + event['requestContext']['authorizer']['jwtClaims'], 'statusCode': 200}
 `)
 });
 

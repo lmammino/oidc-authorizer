@@ -1,0 +1,31 @@
+name: Cargo Audit
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * *'
+
+env:
+  CARGO_TERM_COLOR: always
+
+github-token:
+  action-input:
+    input: token
+    is-default: false
+  permissions:
+    issues: write
+    issues-reason: to create issues
+    checks: write
+    checks-reason: to create check
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: rustsec/audit-check@v1.4.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

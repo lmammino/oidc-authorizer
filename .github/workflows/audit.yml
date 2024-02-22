@@ -3,23 +3,19 @@ name: Cargo Audit
 on:
   push:
     branches: [ main ]
+    paths: 
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
   pull_request:
     branches: [ main ]
+    paths: 
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
   schedule:
     - cron: '0 0 * * *'
 
 env:
   CARGO_TERM_COLOR: always
-
-github-token:
-  action-input:
-    input: token
-    is-default: false
-  permissions:
-    issues: write
-    issues-reason: to create issues
-    checks: write
-    checks-reason: to create check
 
 jobs:
   audit:

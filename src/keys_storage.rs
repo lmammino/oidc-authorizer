@@ -77,7 +77,8 @@ mod tests {
     #[tokio::test]
     async fn it_should_initialize_an_empty_instance() {
         let jwks_uri = Url::parse("https://example.com/jwks.json").unwrap();
-        let min_refresh_rate = Duration::seconds(60);
+        // SAFETY: safe to unwrap since (60 seconds) <= (i64::MAX / 1000)
+        let min_refresh_rate = Duration::try_seconds(60).unwrap();
         let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate);
 
         assert_eq!(keys_cache.jwks_uri, jwks_uri);
@@ -111,7 +112,8 @@ mod tests {
 
         let key_id = "test/keys/rs256/public";
         let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
-        let min_refresh_rate = Duration::seconds(60);
+        // SAFETY: safe to unwrap since (60 seconds) <= (i64::MAX / 1000)
+        let min_refresh_rate = Duration::try_seconds(60).unwrap();
         let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate);
         let key_result = keys_cache.get(key_id).await;
         assert!(key_result.is_ok());
@@ -149,7 +151,8 @@ mod tests {
 
         let key_id = "invalid";
         let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
-        let min_refresh_rate = Duration::seconds(60);
+        // SAFETY: safe to unwrap since (60 seconds) <= (i64::MAX / 1000)
+        let min_refresh_rate = Duration::try_seconds(60).unwrap();
         let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate);
         let key_result = keys_cache.get(key_id).await;
         if let Err(KeysStorageError::KeyNotFound(_)) = key_result {

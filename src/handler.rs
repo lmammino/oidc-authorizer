@@ -165,7 +165,8 @@ mod tests {
         let server_url = server.url("/");
         let iss = server_url.clone();
         let aud = "test-app";
-        let exp = (Utc::now() + Duration::hours(1)).timestamp();
+        // SAFETY: safe to unwrap since (1 hour = 3600 seconds) <= (i64::MAX / 1000)
+        let exp = (Utc::now() + Duration::try_hours(1).unwrap()).timestamp();
 
         // creates a token using the private PEM
         let token_header: Header =
@@ -179,7 +180,8 @@ mod tests {
         let token = token.unwrap();
 
         // instantiates an handler
-        let min_refresh_rate = Duration::seconds(600);
+        // SAFETY: safe to unwrap since (600 seconds) <= (i64::MAX / 1000)
+        let min_refresh_rate = Duration::try_seconds(600).unwrap();
         let jwks_uri = server_url.clone();
         let principal_id_claims = PrincipalIDClaims::from_comma_separated_values(
             "preferred_username, sub",
@@ -212,7 +214,7 @@ mod tests {
         assert!(response.is_ok());
         let response = response.unwrap();
         assert_eq!(
-            response.policy_document.statement.get(0).unwrap().effect,
+            response.policy_document.statement.first().unwrap().effect,
             "Allow"
         );
         assert_eq!(response.principal_id, "some_user");

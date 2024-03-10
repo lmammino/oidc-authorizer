@@ -26,7 +26,7 @@ Resources:
     Properties:
       Location:
         ApplicationId: arn:aws:serverlessrepo:eu-west-1:795006566846:applications/oidc-authorizer
-        SemanticVersion: 0.0.4 # ⬅️ CHANGE: SPECIFY THE EXACT VERSION
+        SemanticVersion: 0.0.6 # ⬅️ CHANGE: SPECIFY THE EXACT VERSION
       Parameters:
         # 👀 CHANGE THE FOLLOWING PARAMETERS
         AcceptedAlgorithms: ""
@@ -66,7 +66,7 @@ The following snippet shows how to use the SAR application with CDK (using Types
 const authorizerApp = new cdk.aws_sam.CfnApplication(this, 'AuthorizerApp', {
   location: {
     applicationId: 'arn:aws:serverlessrepo:eu-west-1:795006566846:applications/oidc-authorizer',
-    semanticVersion: '0.0.4' // 👀 CHANGE ME
+    semanticVersion: '0.0.6' // 👀 CHANGE ME
   },
   parameters: {
     // 👀 CHANGE THE FOLLOWING PARAMETERS

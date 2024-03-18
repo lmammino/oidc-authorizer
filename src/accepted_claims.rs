@@ -156,8 +156,8 @@ mod tests {
         assert!(!accepted_claims
             .is_accepted(&["https://example.net", "https://example.tld"][..].into()));
         assert!(accepted_claims
-            .assert(&json!({"iss": "https://example.net"}))
-            .is_err());
+            .assert(&json!({"iss": ["https://example.net", "https://example.tld"]}))
+            .is_err(),);
     }
 
     #[test]

@@ -24,6 +24,12 @@ impl<'a> From<&'a str> for StringOrArray<'a> {
     }
 }
 
+impl<S: Display> From<&[S]> for StringOrArray<'_> {
+    fn from(a: &[S]) -> Self {
+        StringOrArray::Array(a.iter().map(|s| s.to_string()).collect())
+    }
+}
+
 impl AcceptedClaims {
     pub fn new(accepted_values: Vec<String>, claim_name: String) -> Self {
         Self(accepted_values, claim_name)
@@ -142,6 +148,13 @@ mod tests {
 
         // do not accept example.net (not listed)
         assert!(!accepted_claims.is_accepted(&"https://example.net".into()));
+        assert!(accepted_claims
+            .assert(&json!({"iss": "https://example.net"}))
+            .is_err());
+
+        // do not accept example.net (not listed) even when an array of claims was provided in the token
+        assert!(!accepted_claims
+            .is_accepted(&["https://example.net", "https://example.tld"][..].into()));
         assert!(accepted_claims
             .assert(&json!({"iss": "https://example.net"}))
             .is_err());

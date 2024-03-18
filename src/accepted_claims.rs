@@ -4,7 +4,6 @@ use std::fmt::Display;
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct AcceptedClaims(Vec<String>, String);
 
-#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum StringOrArray<'a> {
     String(&'a str),
     Array(Vec<String>),
@@ -195,8 +194,19 @@ mod tests {
             "iss".to_string(),
         );
 
+        // not a string
         let result = accepted_claims.assert(&json!({
             "iss": 22
+        }));
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            "Claim 'iss' is not a string or an array of strings".to_string()
+        );
+
+        // not an array of string
+        let result = accepted_claims.assert(&json!({
+            "iss": ["https://example.com", 22, "https://example.org"]
         }));
         assert!(result.is_err());
         assert_eq!(

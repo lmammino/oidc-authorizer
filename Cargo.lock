@@ -1350,7 +1350,7 @@ dependencies = [
 
 [[package]]
 name = "oidc-authorizer"
-version = "0.0.6"
+version = "0.0.7"
 dependencies = [
  "chrono",
  "futures-util",

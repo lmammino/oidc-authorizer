@@ -58,7 +58,7 @@ impl KeysStorage {
     }
 
     async fn refresh(&self) -> Result<(), KeysStorageError> {
-        tracing::debug!("Refreshing JWKS");
+        tracing::debug!("Refreshing JWKS from '{}'", self.jwks_uri.as_ref());
         let res = self.client.get(self.jwks_uri.as_ref()).send().await?;
         tracing::debug!("JWKS fetched got status: {}", res.status());
         let jwks = res.text().await?;

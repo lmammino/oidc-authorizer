@@ -101,6 +101,15 @@ Here's a list of the configuration options that are supported:
 - **Mandatory**: No
 - **Default value**: `""`
 
+### AwsLambdaLogLevel
+
+- **Environment variable**: `AWS_LAMBDA_LOG_LEVEL`
+- **Description**: The log level used when executing the authorizer lambda. You can set it to DEBUG to make it very verbose if you need more information 
+to troubleshoot an issue. In general, you should not change this, because if you produce more logs than necessary that might have an impact on cost.
+Allowed values: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`.
+- **Mandatory**: No
+- **Default value**: `"INFO"`
+
 
 ## 🛑 Validation Flow
 

@@ -58,8 +58,11 @@ impl KeysStorage {
     }
 
     async fn refresh(&self) -> Result<(), KeysStorageError> {
+        tracing::debug!("Refreshing JWKS");
         let res = self.client.get(self.jwks_uri.as_ref()).send().await?;
+        tracing::debug!("JWKS fetched got status: {}", res.status());
         let jwks = res.text().await?;
+        tracing::debug!("JWKS fetched got body: {}", jwks);
         let jwks: JwkSet = serde_json::from_str(&jwks)?;
 
         let mut write_guard = self.storage.write().await;

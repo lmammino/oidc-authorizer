@@ -62,6 +62,18 @@ Parameters:
       - RS512
       - EdDSA
     Default: ""
+  AwsLambdaLogLevel:
+    Type: String
+    Description: |
+      The log level used when executing the authorizer lambda. You can set it to DEBUG to make it very verbose if you need more information 
+      to troubleshoot an issue. In general you should not change this, because if you produce more logs than necessary that might have an impact on cost.
+    Default: INFO
+    AllowedValues:
+      - TRACE
+      - DEBUG
+      - INFO
+      - WARN
+      - ERROR
   LambdaTimeout:
     Type: Number
     Description: The timeout to give to the authorizer Lambda.
@@ -88,6 +100,7 @@ Resources:
         - arm64
       Environment:
         Variables:
+          AWS_LAMBDA_LOG_LEVEL: !Ref AwsLambdaLogLevel
           JWKS_URI: !Ref JwksUri
           MIN_REFRESH_RATE: !Ref MinRefreshRate
           PRINCIPAL_ID_CLAIMS: !Ref PrincipalIdClaims

@@ -110,6 +110,15 @@ Allowed values: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`.
 - **Mandatory**: No
 - **Default value**: `"INFO"`
 
+### StackPrefix
+
+- **Environment variable**: N/A (only applies to CloudFormation deployments through SAR)
+- **Description**: A prefix to be used for exported outputs. Useful if you need to deploy this stack multiple times in the same account.
+- **Mandatory**: No
+- **Default value**: `""`
+
+For instance, If you set this parameter to `"Test"`, the ARN of the deployed authorizer when using SAR will be exported as `"TestOidcAuthorizerArn"`.
+
 
 ## 🛑 Validation Flow
 

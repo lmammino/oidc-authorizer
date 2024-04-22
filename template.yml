@@ -84,6 +84,10 @@ Parameters:
     MaxValue: "10240"
     Description: The amount of memory (in MB) to give to the authorizer Lambda.
     Default: "128"
+  StackPrefix:
+    Type: String
+    Description: A prefix to be used for exported outputs. Useful if you need to deploy this stack multiple times in the same account.
+    Default: ""
 
 Resources:
   OidcAuthorizer:
@@ -114,4 +118,4 @@ Outputs:
     Description: The ARN of the OIDC Authorizer Lambda function
     Value: !GetAtt OidcAuthorizer.Arn
     Export:
-      Name: OidcAuthorizerArn
+      Name: !Sub "${StackPrefix}OidcAuthorizerArn"

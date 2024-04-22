@@ -38,6 +38,8 @@ Resources:
         LambdaMemorySize: "128"
         # The timeout to give to the authorizer Lambda.
         LambdaTimeout: "3"
+        # Change this if you want to prefix the stack name (needed if you need to deploy this stack multiple times in the same account)
+        StackPrefix: "MyApp"
 
   # YOUR APIs HERE
   ApiGatewayApi:
@@ -49,7 +51,7 @@ Resources:
         DefaultAuthorizer: OidcAuthorizer
         Authorizers:
           OidcAuthorizer:
-            FunctionArn: !GetAtt oidcauthorizer.Outputs.OidcAuthorizerArn
+            FunctionArn: !GetAtt oidcauthorizer.Outputs.MyAppOidcAuthorizerArn # Make sure to apply the same prefix as in StackPrefix
 
   # 👀 CHANGE: Define your APIs here
   SampleApiFunction1:

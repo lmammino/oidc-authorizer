@@ -1,8 +1,8 @@
 use serde_json::Value;
-use std::fmt::Display;
+use std::{collections::HashSet, fmt::Display};
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
-pub struct AcceptedClaims(Vec<String>, String);
+pub struct AcceptedClaims(HashSet<String>, String);
 
 pub enum StringOrArray<'a> {
     String(&'a str),
@@ -31,7 +31,7 @@ impl<S: Display> From<&[S]> for StringOrArray<'_> {
 }
 
 impl AcceptedClaims {
-    pub fn new(accepted_values: Vec<String>, claim_name: String) -> Self {
+    pub fn new(accepted_values: HashSet<String>, claim_name: String) -> Self {
         Self(accepted_values, claim_name)
     }
 
@@ -42,7 +42,7 @@ impl AcceptedClaims {
             .filter(|s| !s.is_empty())
             .collect::<Vec<_>>();
 
-        Self::new(accepted_values, claim_name)
+        Self::new(accepted_values.into_iter().collect(), claim_name)
     }
 
     pub fn is_accepted(&self, claim_value: &StringOrArray) -> bool {
@@ -116,7 +116,7 @@ mod tests {
                 vec![
                     "https://example.com".to_string(),
                     "https://example.org".to_string()
-                ],
+                ].into_iter().collect() ,
                 "iss".to_string()
             )
         );

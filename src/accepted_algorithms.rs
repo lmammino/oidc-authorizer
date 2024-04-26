@@ -1,9 +1,9 @@
 use jsonwebtoken::Algorithm;
-use std::str::FromStr;
+use std::{collections::HashSet, str::FromStr};
 use thiserror::Error;
 
 #[derive(Debug, Clone, Default)]
-pub struct AcceptedAlgorithms(Vec<Algorithm>);
+pub struct AcceptedAlgorithms(HashSet<Algorithm>);
 
 #[derive(Debug, Error)]
 pub enum AcceptedAlgorithmsError {
@@ -57,7 +57,7 @@ impl FromStr for AcceptedAlgorithms {
             }
         }
 
-        Ok(Self(algorithms))
+        Ok(Self(algorithms.into_iter().collect()))
     }
 }
 

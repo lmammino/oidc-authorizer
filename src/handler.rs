@@ -151,6 +151,35 @@ mod tests {
     use serde_json::json;
     use tracing_test::traced_test;
 
+    fn make_simple_handler() -> Handler {
+        let key_storage = Box::leak(Box::new(KeysStorage::new(
+            Url::parse("http://localhost").unwrap(),
+            Duration::try_seconds(600).unwrap(),
+        )));
+        let principal_id_claims =
+            Box::leak(Box::new(PrincipalIDClaims::from_comma_separated_values(
+                "preferred_username, sub",
+                "unknown".to_string(),
+            )));
+        let accepted_issuers = Box::leak(Box::new(AcceptedClaims::from_comma_separated_values(
+            "http://localhost",
+            "iss".to_string(),
+        )));
+        let accepted_audiences = Box::leak(Box::new(AcceptedClaims::from_comma_separated_values(
+            "test-app",
+            "aud".to_string(),
+        )));
+        let accepted_signing_algorithms = Box::leak(Box::default());
+
+        Handler::new(
+            key_storage,
+            principal_id_claims,
+            accepted_issuers,
+            accepted_audiences,
+            accepted_signing_algorithms,
+        )
+    }
+
     async fn test_with(algorithm: Algorithm, encoding_key: EncodingKey, jwk: &str, kid: &str) {
         // create a mock server that will serve the jwks
         let server = MockServer::start();
@@ -334,5 +363,292 @@ mod tests {
             "test/keys/eddsa/public",
         )
         .await;
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_denies_if_cant_get_token_from_header() {
+        let event = TokenAuthorizerEvent {
+            authorization_token: "NotBearer sometoken".to_string(),
+            method_arn: "some_arn".to_string(),
+        };
+
+        let handler = make_simple_handler();
+        let response = handler.do_call(event).await;
+
+        assert!(response.is_ok());
+        let response = response.unwrap();
+        let statement = response.policy_document.statement.first().unwrap();
+        assert_eq!(statement.effect, "Deny");
+        assert_eq!(statement.resource, "some_arn");
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_denies_if_cant_parse_from_header() {
+        let event = TokenAuthorizerEvent {
+            authorization_token: "Bearer not_a_jwt".to_string(),
+            method_arn: "some_arn".to_string(),
+        };
+        let handler = make_simple_handler();
+
+        let response = handler.do_call(event).await;
+
+        assert!(response.is_ok());
+        let response = response.unwrap();
+        let statement = response.policy_document.statement.first().unwrap();
+        assert_eq!(statement.effect, "Deny");
+        assert_eq!(statement.resource, "some_arn");
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_denies_if_the_token_uses_an_unsupported_algorithm() {
+        let iss = "some_iss";
+        let aud = "test-app";
+        let exp = (Utc::now() + Duration::try_hours(1).unwrap()).timestamp();
+        let encoding_key =
+            EncodingKey::from_rsa_pem(include_bytes!("../tests/fixtures/keys/rs256/private.pem"))
+                .unwrap();
+        let token_header: Header =
+            serde_json::from_value(json!({ "alg": Algorithm::RS256, "kid": "somekey" })).unwrap();
+        let token = jsonwebtoken::encode(
+            &token_header,
+            &json!({ "iss": iss, "aud": aud, "exp": exp, "sub": "some_user", "preferred_username": "some_user" }),
+            &encoding_key,
+        ).unwrap();
+        let event = TokenAuthorizerEvent {
+            authorization_token: format!("Bearer {}", token),
+            method_arn: "some_arn".to_string(),
+        };
+        let accepted_signing_algorithms: AcceptedAlgorithms = "ES256".parse().unwrap();
+        let accepted_signing_algorithms = Box::leak(Box::new(accepted_signing_algorithms));
+        let mut handler = make_simple_handler();
+        handler.accepted_signing_algorithms = accepted_signing_algorithms;
+
+        let response = handler.do_call(event).await;
+
+        assert!(response.is_ok());
+        let response = response.unwrap();
+        let statement = response.policy_document.statement.first().unwrap();
+        assert_eq!(statement.effect, "Deny");
+        assert_eq!(statement.resource, "some_arn");
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_denies_if_the_token_has_no_kid() {
+        let iss = "some_iss";
+        let aud = "test-app";
+        let exp = (Utc::now() + Duration::try_hours(1).unwrap()).timestamp();
+        let encoding_key =
+            EncodingKey::from_rsa_pem(include_bytes!("../tests/fixtures/keys/rs256/private.pem"))
+                .unwrap();
+        let token_header: Header =
+            serde_json::from_value(json!({ "alg": Algorithm::RS256 })).unwrap();
+        let token = jsonwebtoken::encode(
+            &token_header,
+            &json!({ "iss": iss, "aud": aud, "exp": exp, "sub": "some_user", "preferred_username": "some_user" }),
+            &encoding_key,
+        ).unwrap();
+        let event = TokenAuthorizerEvent {
+            authorization_token: format!("Bearer {}", token),
+            method_arn: "some_arn".to_string(),
+        };
+        let handler = make_simple_handler();
+
+        let response = handler.do_call(event).await;
+
+        assert!(response.is_ok());
+        let response = response.unwrap();
+        let statement = response.policy_document.statement.first().unwrap();
+        assert_eq!(statement.effect, "Deny");
+        assert_eq!(statement.resource, "some_arn");
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_denies_if_it_fails_to_retrieve_the_key() {
+        // create a mock server that will serve an empty list of jwks
+        let server = MockServer::start();
+        let _jwks_mock = server.mock(|when, then| {
+            when.method(GET).path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body("{\"keys\":[]}");
+        });
+
+        let iss = "some_iss";
+        let aud = "test-app";
+        let exp = (Utc::now() + Duration::try_hours(1).unwrap()).timestamp();
+        let encoding_key =
+            EncodingKey::from_rsa_pem(include_bytes!("../tests/fixtures/keys/rs256/private.pem"))
+                .unwrap();
+        let token_header: Header =
+            serde_json::from_value(json!({ "alg": Algorithm::RS256, "kid": "somekey" })).unwrap();
+        let token = jsonwebtoken::encode(
+            &token_header,
+            &json!({ "iss": iss, "aud": aud, "exp": exp, "sub": "some_user", "preferred_username": "some_user" }),
+            &encoding_key,
+        ).unwrap();
+        let event = TokenAuthorizerEvent {
+            authorization_token: format!("Bearer {}", token),
+            method_arn: "some_arn".to_string(),
+        };
+        let mut handler = make_simple_handler();
+        handler.keys = Box::leak(Box::new(KeysStorage::new(
+            Url::parse(&server.url("/")).unwrap(),
+            Duration::try_seconds(600).unwrap(),
+        )));
+
+        let response = handler.do_call(event).await;
+
+        assert!(response.is_ok());
+        let response = response.unwrap();
+        let statement = response.policy_document.statement.first().unwrap();
+        assert_eq!(statement.effect, "Deny");
+        assert_eq!(statement.resource, "some_arn");
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_denies_if_it_fails_to_validate_the_token() {
+        let server = MockServer::start();
+        let _jwks_mock = server.mock(|when, then| {
+            when.method(GET).path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!(
+                    "{{\"keys\":[ {} ]}}",
+                    include_str!("../tests/fixtures/keys/rs256/jwk.json")
+                ));
+        });
+        let iss = "some_iss";
+        let aud = "test-app";
+        // makes the token already expired by 1 hour
+        let exp = (Utc::now() - Duration::try_hours(1).unwrap()).timestamp();
+        let encoding_key =
+            EncodingKey::from_rsa_pem(include_bytes!("../tests/fixtures/keys/rs256/private.pem"))
+                .unwrap();
+        let token_header: Header = serde_json::from_value(
+            json!({ "alg": Algorithm::RS256, "kid": "test/keys/rs256/public" }),
+        )
+        .unwrap();
+        let token = jsonwebtoken::encode(
+            &token_header,
+            &json!({ "iss": iss, "aud": aud, "exp": exp, "sub": "some_user", "preferred_username": "some_user" }),
+            &encoding_key,
+        ).unwrap();
+        let event = TokenAuthorizerEvent {
+            authorization_token: format!("Bearer {}", token),
+            method_arn: "some_arn".to_string(),
+        };
+        let mut handler = make_simple_handler();
+        handler.keys = Box::leak(Box::new(KeysStorage::new(
+            Url::parse(&server.url("/")).unwrap(),
+            Duration::try_seconds(600).unwrap(),
+        )));
+
+        let response = handler.do_call(event).await;
+
+        assert!(response.is_ok());
+        let response = response.unwrap();
+        let statement = response.policy_document.statement.first().unwrap();
+        assert_eq!(statement.effect, "Deny");
+        assert_eq!(statement.resource, "some_arn");
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_denies_if_it_fails_to_validate_the_issuer() {
+        let server = MockServer::start();
+        let _jwks_mock = server.mock(|when, then| {
+            when.method(GET).path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!(
+                    "{{\"keys\":[ {} ]}}",
+                    include_str!("../tests/fixtures/keys/rs256/jwk.json")
+                ));
+        });
+        let iss = "http://notlocalhost"; // invalid issuer
+        let aud = "test-app";
+        let exp = (Utc::now() + Duration::try_hours(1).unwrap()).timestamp();
+        let encoding_key =
+            EncodingKey::from_rsa_pem(include_bytes!("../tests/fixtures/keys/rs256/private.pem"))
+                .unwrap();
+        let token_header: Header = serde_json::from_value(
+            json!({ "alg": Algorithm::RS256, "kid": "test/keys/rs256/public" }),
+        )
+        .unwrap();
+        let token = jsonwebtoken::encode(
+            &token_header,
+            &json!({ "iss": iss, "aud": aud, "exp": exp, "sub": "some_user", "preferred_username": "some_user" }),
+            &encoding_key,
+        ).unwrap();
+        let event = TokenAuthorizerEvent {
+            authorization_token: format!("Bearer {}", token),
+            method_arn: "some_arn".to_string(),
+        };
+        let mut handler = make_simple_handler();
+        handler.keys = Box::leak(Box::new(KeysStorage::new(
+            Url::parse(&server.url("/")).unwrap(),
+            Duration::try_seconds(600).unwrap(),
+        )));
+
+        let response = handler.do_call(event).await;
+
+        assert!(response.is_ok());
+        let response = response.unwrap();
+        let statement = response.policy_document.statement.first().unwrap();
+        assert_eq!(statement.effect, "Deny");
+        assert_eq!(statement.resource, "some_arn");
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_denies_if_it_fails_to_validate_the_audience() {
+        let server = MockServer::start();
+        let _jwks_mock = server.mock(|when, then| {
+            when.method(GET).path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!(
+                    "{{\"keys\":[ {} ]}}",
+                    include_str!("../tests/fixtures/keys/rs256/jwk.json")
+                ));
+        });
+        let iss = "http://localhost";
+        let aud = "not-test-app"; // invalid audience
+        let exp = (Utc::now() + Duration::try_hours(1).unwrap()).timestamp();
+        let encoding_key =
+            EncodingKey::from_rsa_pem(include_bytes!("../tests/fixtures/keys/rs256/private.pem"))
+                .unwrap();
+        let token_header: Header = serde_json::from_value(
+            json!({ "alg": Algorithm::RS256, "kid": "test/keys/rs256/public" }),
+        )
+        .unwrap();
+        let token = jsonwebtoken::encode(
+            &token_header,
+            &json!({ "iss": iss, "aud": aud, "exp": exp, "sub": "some_user", "preferred_username": "some_user" }),
+            &encoding_key,
+        ).unwrap();
+        let event = TokenAuthorizerEvent {
+            authorization_token: format!("Bearer {}", token),
+            method_arn: "some_arn".to_string(),
+        };
+        let mut handler = make_simple_handler();
+        handler.keys = Box::leak(Box::new(KeysStorage::new(
+            Url::parse(&server.url("/")).unwrap(),
+            Duration::try_seconds(600).unwrap(),
+        )));
+
+        let response = handler.do_call(event).await;
+
+        assert!(response.is_ok());
+        let response = response.unwrap();
+        let statement = response.policy_document.statement.first().unwrap();
+        assert_eq!(statement.effect, "Deny");
+        assert_eq!(statement.resource, "some_arn");
     }
 }

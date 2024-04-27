@@ -49,11 +49,12 @@ jobs:
       run: cargo llvm-cov --all-features --lcov --output-path lcov.info
 
     - name: Upload coverage to codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: lcov.info
-        fail_ci_if_error: true
+        fail_ci_if_error: false
+        verbose: true
   
   build:
     runs-on: ubuntu-latest

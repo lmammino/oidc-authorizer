@@ -38,6 +38,7 @@ pub struct TokenAuthorizerResponse {
 }
 
 impl TokenAuthorizerResponse {
+    #[inline]
     pub fn allow(principal_id: &str, token_claims: &Value) -> Self {
         let mut context = HashMap::new();
         context.insert(
@@ -62,6 +63,7 @@ impl TokenAuthorizerResponse {
         }
     }
 
+    #[inline]
     pub fn deny(resource: &str) -> Self {
         Self {
             context: HashMap::new(),

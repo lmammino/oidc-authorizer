@@ -7,7 +7,7 @@
 
 A high-performance token-based API Gateway authorizer Lambda that can validate OIDC-issued JWT tokens.
 
-![An industrious otter as a logo for this project. Generated with Stable Diffusion (prompt: Intricate illuminated otter made of blown glass catch a fish in the air, breathtaking borderland fantasycore artwork by Android Jones, Jean Baptiste monge, Alberto Seveso, Erin Hanson, Jeremy Mann. maximalist highly detailed and intricate professional_photography, a masterpiece, 8k resolution concept art, Artstation, triadic colors, Unreal Engine 5, cgsociety)](https://github.com/lmammino/oidc-authorizer/raw/main/docs/logo.png)
+![The OIDC-Authorizer logo represents a determinate otter dressed like a knight with a sword and a shield. The shield has the API Gateway logo on it.)](https://github.com/lmammino/oidc-authorizer/raw/main/docs/logo/oidc-authorizer-logo.png)
 
 
 ## 🤌 Use case

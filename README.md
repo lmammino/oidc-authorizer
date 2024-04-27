@@ -7,7 +7,7 @@
 
 A high-performance token-based API Gateway authorizer Lambda that can validate OIDC-issued JWT tokens.
 
-![The OIDC-Authorizer logo represents a determinate otter dressed like a knight with a sword and a shield. The shield has the API Gateway logo on it.)](https://github.com/lmammino/oidc-authorizer/raw/main/docs/logo/oidc-authorizer-logo.png)
+![The OIDC-Authorizer logo represents a determinate otter dressed like a knight with a sword and a shield. The shield has the API Gateway logo on it.)](https://github.com/lmammino/oidc-authorizer/raw/main/docs/logo/oidc-authorizer-logo-small.png)
 
 
 ## 🤌 Use case

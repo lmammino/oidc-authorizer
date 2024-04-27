@@ -116,7 +116,9 @@ mod tests {
                 vec![
                     "https://example.com".to_string(),
                     "https://example.org".to_string()
-                ].into_iter().collect() ,
+                ]
+                .into_iter()
+                .collect(),
                 "iss".to_string()
             )
         );

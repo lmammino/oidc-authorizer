@@ -49,20 +49,19 @@ impl Handler {
             return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
         }
         let token = token.unwrap();
-        let deny = TokenAuthorizerResponse::deny(&event.method_arn);
 
         // parse token header
         let token_header = decode_header(token);
         if let Err(e) = token_header {
             tracing::info!("Failed to parse token header (token='{}'): {}", token, e);
-            return Ok(deny);
+            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
         }
         let token_header = token_header.unwrap();
 
         // validate the signing algorithm
         if let Err(e) = self.accepted_signing_algorithms.assert(&token_header.alg) {
             tracing::info!(e);
-            return Ok(deny);
+            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
         }
 
         // retrieve token key
@@ -71,7 +70,7 @@ impl Handler {
                 "Missing kid in token header (token_header='{:?}')",
                 token_header
             );
-            return Ok(deny);
+            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
         }
 
         // get the key from the storage
@@ -79,7 +78,7 @@ impl Handler {
         let key_result = self.keys.get(&key_id).await;
         if let Err(e) = key_result {
             tracing::info!("Failed to retrieve key (key_id='{}'): {}", key_id, e);
-            return Ok(deny);
+            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
         }
         let key = key_result.unwrap();
 
@@ -88,20 +87,20 @@ impl Handler {
             decode::<serde_json::Value>(token, &key, &Validation::new(token_header.alg));
         if let Err(e) = token_payload {
             tracing::info!("Failed to validate token (token='{}'): {}", token, e);
-            return Ok(deny);
+            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
         }
         let token_payload = token_payload.unwrap();
 
         // validate issuer
         if let Err(e) = self.accepted_issuers.assert(&token_payload.claims) {
             tracing::info!(e);
-            return Ok(deny);
+            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
         }
 
         // validate audience
         if let Err(e) = self.accepted_audiences.assert(&token_payload.claims) {
             tracing::info!(e);
-            return Ok(deny);
+            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
         }
 
         let principal_id = self

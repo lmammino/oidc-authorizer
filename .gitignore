@@ -2,3 +2,4 @@
 .aws-sam/
 .env
 tests/test-event.json
+tarpaulin-report.html

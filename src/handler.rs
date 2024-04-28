@@ -84,13 +84,14 @@ impl Handler {
             }
         };
 
-        let token_payload = match decode::<serde_json::Value>(token, &key, &Validation::new(token_header.alg)) {
-            Ok(token_payload) => token_payload,
-            Err(e) => {
-                tracing::info!("Failed to validate token (token='{}'): {}", token, e);
-                return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
-            }
-        };
+        let token_payload =
+            match decode::<serde_json::Value>(token, &key, &Validation::new(token_header.alg)) {
+                Ok(token_payload) => token_payload,
+                Err(e) => {
+                    tracing::info!("Failed to validate token (token='{}'): {}", token, e);
+                    return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
+                }
+            };
 
         // validate issuer
         if let Err(e) = self.accepted_issuers.assert(&token_payload.claims) {

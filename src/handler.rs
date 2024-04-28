@@ -66,20 +66,19 @@ impl Handler {
             return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
         }
 
-        let key_id = match token_header.kid {
-            Some(key_id) => key_id,
+        let key = match token_header.kid {
+            Some(key_id) => match self.keys.get(&key_id).await {
+                Ok(key) => key,
+                Err(e) => {
+                    tracing::info!("Failed to retrieve key (key_id='{}'): {}", key_id, e);
+                    return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
+                }
+            },
             None => {
                 tracing::info!(
                     "Missing kid in token header (token_header='{:?}')",
                     token_header
                 );
-                return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
-            }
-        };
-        let key = match self.keys.get(&key_id).await {
-            Ok(key) => key,
-            Err(e) => {
-                tracing::info!("Failed to retrieve key (key_id='{}'): {}", key_id, e);
                 return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
             }
         };

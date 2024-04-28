@@ -39,24 +39,26 @@ impl Handler {
     async fn do_call(self, event: TokenAuthorizerEvent) -> Result<TokenAuthorizerResponse, Error> {
         // TODO: custom metrics using EMF logs
         // extract token from header
-        let token = parse_token_from_header(&event.authorization_token);
-        if let Err(e) = token {
-            tracing::info!(
-                "Failed to extract token fron header (header_value='{}'): {}",
-                event.authorization_token,
-                e
-            );
-            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
-        }
-        let token = token.unwrap();
+        let token = match parse_token_from_header(&event.authorization_token) {
+            Ok(token) => token,
+            Err(e) => {
+                tracing::info!(
+                    "Failed to extract token fron header (header_value='{}'): {}",
+                    event.authorization_token,
+                    e
+                );
+                return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
+            }
+        };
 
         // parse token header
-        let token_header = decode_header(token);
-        if let Err(e) = token_header {
-            tracing::info!("Failed to parse token header (token='{}'): {}", token, e);
-            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
-        }
-        let token_header = token_header.unwrap();
+        let token_header = match decode_header(token) {
+            Ok(token_header) => token_header,
+            Err(e) => {
+                tracing::info!("Failed to parse token header (token='{}'): {}", token, e);
+                return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
+            }
+        };
 
         // validate the signing algorithm
         if let Err(e) = self.accepted_signing_algorithms.assert(&token_header.alg) {
@@ -64,32 +66,31 @@ impl Handler {
             return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
         }
 
-        // retrieve token key
-        if token_header.kid.is_none() {
-            tracing::info!(
-                "Missing kid in token header (token_header='{:?}')",
-                token_header
-            );
-            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
-        }
+        let key_id = match token_header.kid {
+            Some(key_id) => key_id,
+            None => {
+                tracing::info!(
+                    "Missing kid in token header (token_header='{:?}')",
+                    token_header
+                );
+                return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
+            }
+        };
+        let key = match self.keys.get(&key_id).await {
+            Ok(key) => key,
+            Err(e) => {
+                tracing::info!("Failed to retrieve key (key_id='{}'): {}", key_id, e);
+                return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
+            }
+        };
 
-        // get the key from the storage
-        let key_id = token_header.kid.unwrap();
-        let key_result = self.keys.get(&key_id).await;
-        if let Err(e) = key_result {
-            tracing::info!("Failed to retrieve key (key_id='{}'): {}", key_id, e);
-            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
-        }
-        let key = key_result.unwrap();
-
-        // validate token and get payload
-        let token_payload =
-            decode::<serde_json::Value>(token, &key, &Validation::new(token_header.alg));
-        if let Err(e) = token_payload {
-            tracing::info!("Failed to validate token (token='{}'): {}", token, e);
-            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
-        }
-        let token_payload = token_payload.unwrap();
+        let token_payload = match decode::<serde_json::Value>(token, &key, &Validation::new(token_header.alg)) {
+            Ok(token_payload) => token_payload,
+            Err(e) => {
+                tracing::info!("Failed to validate token (token='{}'): {}", token, e);
+                return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
+            }
+        };
 
         // validate issuer
         if let Err(e) = self.accepted_issuers.assert(&token_payload.claims) {

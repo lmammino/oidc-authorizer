@@ -48,7 +48,7 @@ impl AcceptedClaims {
     pub fn is_accepted(&self, claim_value: &StringOrArray) -> bool {
         self.0.is_empty()
             || match claim_value {
-                StringOrArray::String(claim_value) => self.0.contains(&claim_value.to_string()),
+                StringOrArray::String(claim_value) => self.0.contains(*claim_value),
                 StringOrArray::Array(claim_values) => claim_values
                     .iter()
                     .any(|claim_value| self.0.contains(claim_value)),

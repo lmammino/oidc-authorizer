@@ -163,12 +163,14 @@ def handler(event, context):
 
 ## 🏃‍♂️ Benchmarks
 
-Proper benchmarks are yet to be written (SORRY 😇), but for now, to prove that this Lambda is still reasonably fast, here's some data observed during some manual tests (128 MB Memory deployment):
+We have benchmarked this authorizer against an equivalent Python implementation. And these are some of the main findings:
 
-- Cold start times: ~48ms
-- Cold start requests (including fetching JWKS from Azure): 120-300ms
-- Warm requests (with JWKS in cache): ~10ms
-- Actual memory consumption: ~19 MB
+- The Rust version is about 16 times faster than the Python version when it comes to cold starts (~42ms vs ~670ms).
+- Execution times are quite comparable between the two implementations, with the Rust version being only slightly faster. This is probably because the Python library used to do the JWT validation is quite optimized.
+- Memory utilization is about 3.5 times smaller in Rust (22MB vs 77MB). This allows us to use a smaller memory size for the Rust version, which results in a lower cost.
+- The cost per request is about 3 times smaller in Rust compared to Python (~1.44 USD vs ~4.13 USD per every 100Mln invocations).
+
+If you want to have a more detailed look at the benchmark methodology and the results, you can check out the [dedicated benchmarking repository](https://github.com/lmammino/oidc-authorizer-benchmark).
 
 
 ## 🙌 Contributing

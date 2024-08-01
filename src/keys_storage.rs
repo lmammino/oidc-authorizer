@@ -29,7 +29,10 @@ impl KeysStorage {
         Self {
             jwks_uri,
             min_refresh_rate,
-            client: Client::new(),
+            client: Client::builder()
+                .user_agent(format!("oidc-authorizer/{}", env!("CARGO_PKG_VERSION")))
+                .build()
+                .unwrap(),
             storage: Arc::new(RwLock::new((KeysMap::default(), Default::default()))),
         }
     }

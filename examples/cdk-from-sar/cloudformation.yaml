@@ -5,7 +5,7 @@ Resources:
     Properties:
       Location:
         ApplicationId: arn:aws:serverlessrepo:eu-west-1:795006566846:applications/oidc-authorizer
-        SemanticVersion: 0.1.0
+        SemanticVersion: 0.1.1
       Parameters:
         AcceptedAlgorithms: ""
         AcceptedAudiences: ""
@@ -293,7 +293,7 @@ Resources:
     Properties:
       Code:
         ZipFile: |
-          
+
           def handler(event, context):
             return {'body': 'Hello from endpoint1!', 'statusCode': 200}
       Handler: index.handler
@@ -329,7 +329,7 @@ Resources:
     Properties:
       Code:
         ZipFile: |
-          
+
           def handler(event, context):
             return {'body': 'Hello ' + event['requestContext']['authorizer']['principalId'] + ' from endpoint2!
           These are your claims: ' + event['requestContext']['authorizer']['jwtClaims'], 'statusCode': 200}
@@ -488,4 +488,3 @@ Rules:
                   - "5"
                 - Ref: BootstrapVersion
         AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
-

@@ -28,7 +28,7 @@ Resources:
     Properties:
       Location:
         ApplicationId: arn:aws:serverlessrepo:eu-west-1:795006566846:applications/oidc-authorizer
-        SemanticVersion: 0.1.1 # ⬅️ CHANGE: SPECIFY THE EXACT VERSION
+        SemanticVersion: 0.1.2 # ⬅️ CHANGE: SPECIFY THE EXACT VERSION
       Parameters:
         # 👀 CHANGE THE FOLLOWING PARAMETERS
         AcceptedAlgorithms: ""
@@ -72,7 +72,7 @@ const authorizerApp = new cdk.aws_sam.CfnApplication(this, "AuthorizerApp", {
   location: {
     applicationId:
       "arn:aws:serverlessrepo:eu-west-1:795006566846:applications/oidc-authorizer",
-    semanticVersion: "0.1.1", // 👀 CHANGE ME
+    semanticVersion: "0.1.2", // 👀 CHANGE ME
   },
   parameters: {
     // 👀 CHANGE THE FOLLOWING PARAMETERS

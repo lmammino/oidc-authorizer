@@ -83,26 +83,16 @@ impl Handler {
             }
         };
 
-        let token_payload =
-            match decode::<serde_json::Value>(token, &key, &Validation::new(token_header.alg)) {
-                Ok(token_payload) => token_payload,
-                Err(e) => {
-                    tracing::info!("Failed to validate token (token='{}'): {}", token, e);
-                    return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
-                }
-            };
-
-        // validate issuer
-        if let Err(e) = self.accepted_issuers.assert(&token_payload.claims) {
-            tracing::info!(e);
-            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
-        }
-
-        // validate audience
-        if let Err(e) = self.accepted_audiences.assert(&token_payload.claims) {
-            tracing::info!(e);
-            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
-        }
+        let mut validation = Validation::new(token_header.alg);
+        validation.set_audience(&self.accepted_audiences.accepted_values());
+        validation.set_issuer(&self.accepted_issuers.accepted_values());
+        let token_payload = match decode::<serde_json::Value>(token, &key, &validation) {
+            Ok(token_payload) => token_payload,
+            Err(e) => {
+                tracing::info!("Failed to validate token (token='{}'): {}", token, e);
+                return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
+            }
+        };
 
         let principal_id = self
             .principal_id_claims

@@ -11,7 +11,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ["apigateway", "authorizer", "lambda", "oidc"]
     HomePageUrl: https://github.com/lmammino/oidc-authorizer
-    SemanticVersion: 0.1.2
+    SemanticVersion: 0.2.0
     SourceCodeUrl: https://github.com/lmammino/oidc-authorizer
 
 Parameters:

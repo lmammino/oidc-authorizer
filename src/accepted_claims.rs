@@ -1,33 +1,7 @@
-use std::{collections::HashSet, fmt::Display};
+use std::collections::HashSet;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct AcceptedClaims(HashSet<String>, String);
-
-pub enum StringOrArray<'a> {
-    String(&'a str),
-    Array(Vec<String>),
-}
-
-impl Display for StringOrArray<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            StringOrArray::String(s) => write!(f, "{}", s),
-            StringOrArray::Array(s) => write!(f, "[{:?}]", s),
-        }
-    }
-}
-
-impl<'a> From<&'a str> for StringOrArray<'a> {
-    fn from(s: &'a str) -> Self {
-        StringOrArray::String(s)
-    }
-}
-
-impl<S: Display> From<&[S]> for StringOrArray<'_> {
-    fn from(a: &[S]) -> Self {
-        StringOrArray::Array(a.iter().map(|s| s.to_string()).collect())
-    }
-}
 
 impl AcceptedClaims {
     pub fn new(accepted_values: HashSet<String>, claim_name: String) -> Self {

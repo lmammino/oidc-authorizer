@@ -40,8 +40,8 @@ Resources:
         LambdaMemorySize: "128"
         # The timeout to give to the authorizer Lambda.
         LambdaTimeout: "3"
-        # Log retention in days (0 = unlimited). Set to save on CloudWatch costs.
-        LogRetentionDays: "0"
+        # Log retention in days for cost saving (default is 0 = unlimited)
+        LogRetentionDays: "30"
         # Change this if you want to prefix the stack name (needed if you need to deploy this stack multiple times in the same account)
         StackPrefix: "MyApp"
 

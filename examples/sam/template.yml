@@ -65,7 +65,7 @@ Resources:
     Properties:
       CodeUri: ../..
       Handler: bootstrap
-      Runtime: provided.al2
+      Runtime: provided.al2023
       Timeout: 3 # 👀 CHANGE IF NEEDED
       MemorySize: 128 # 👀 CHANGE IF NEEDED
       Architectures:

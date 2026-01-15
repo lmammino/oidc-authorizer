@@ -198,7 +198,7 @@ Just make sure to define set the following Lambda properties as follow:
 ```yaml
 CodeUri: . # OR the path to the **directory** containing lambda binary (which needs to be unzipped)
 Handler: bootstrap
-Runtime: provided.al2
+Runtime: provided.al2023
 Architectures: [arm64]
 ```
 

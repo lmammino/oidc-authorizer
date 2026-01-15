@@ -1,6 +1,7 @@
 use crate::{
     accepted_algorithms::AcceptedAlgorithms,
     accepted_claims::AcceptedClaims,
+    cel_validation::CelValidator,
     keys_storage::KeysStorage,
     models::{TokenAuthorizerEvent, TokenAuthorizerResponse},
     parse_token_from_header::parse_token_from_header,
@@ -17,6 +18,7 @@ pub struct Handler {
     pub accepted_issuers: &'static AcceptedClaims,
     pub accepted_audiences: &'static AcceptedClaims,
     pub accepted_signing_algorithms: &'static AcceptedAlgorithms,
+    pub cel_validator: &'static CelValidator,
 }
 
 impl Handler {
@@ -26,6 +28,7 @@ impl Handler {
         accepted_issuers: &'static AcceptedClaims,
         accepted_audiences: &'static AcceptedClaims,
         accepted_signing_algorithms: &'static AcceptedAlgorithms,
+        cel_validator: &'static CelValidator,
     ) -> Self {
         Self {
             keys,
@@ -33,6 +36,7 @@ impl Handler {
             accepted_issuers,
             accepted_audiences,
             accepted_signing_algorithms,
+            cel_validator,
         }
     }
 
@@ -66,8 +70,8 @@ impl Handler {
             return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
         }
 
-        let key = match token_header.kid {
-            Some(key_id) => match self.keys.get(&key_id).await {
+        let key = match &token_header.kid {
+            Some(key_id) => match self.keys.get(key_id).await {
                 Ok(key) => key,
                 Err(e) => {
                     tracing::info!("Failed to retrieve key (key_id='{}'): {}", key_id, e);
@@ -94,6 +98,19 @@ impl Handler {
             }
         };
 
+        // CEL validation (if configured)
+        if let Err(e) = self
+            .cel_validator
+            .validate(&token_header, &token_payload.claims)
+        {
+            tracing::info!(
+                "CEL validation failed (expression='{}'): {}",
+                self.cel_validator.expression(),
+                e
+            );
+            return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
+        }
+
         let principal_id = self
             .principal_id_claims
             .get_principal_id_from_claims(&token_payload.claims);
@@ -113,6 +130,7 @@ impl Clone for Handler {
             accepted_issuers: self.accepted_issuers,
             accepted_audiences: self.accepted_audiences,
             accepted_signing_algorithms: self.accepted_signing_algorithms,
+            cel_validator: self.cel_validator,
         }
     }
 }
@@ -161,6 +179,7 @@ mod tests {
             "aud".to_string(),
         )));
         let accepted_signing_algorithms = Box::leak(Box::default());
+        let cel_validator = Box::leak(Box::default());
 
         Handler::new(
             key_storage,
@@ -168,6 +187,7 @@ mod tests {
             accepted_issuers,
             accepted_audiences,
             accepted_signing_algorithms,
+            cel_validator,
         )
     }
 
@@ -210,6 +230,7 @@ mod tests {
         let accepted_audiences =
             AcceptedClaims::from_comma_separated_values(aud, "aud".to_string());
         let accepted_signing_algorithms: AcceptedAlgorithms = Default::default();
+        let cel_validator: CelValidator = Default::default();
         let keys = KeysStorage::new(Url::parse(&jwks_uri).unwrap(), min_refresh_rate);
         let mut handler = Handler::new(
             Box::leak(Box::new(keys)),
@@ -217,6 +238,7 @@ mod tests {
             Box::leak(Box::new(accepted_issuers)),
             Box::leak(Box::new(accepted_audiences)),
             Box::leak(Box::new(accepted_signing_algorithms)),
+            Box::leak(Box::new(cel_validator)),
         );
 
         // creates the event
@@ -641,5 +663,210 @@ mod tests {
         let statement = response.policy_document.statement.first().unwrap();
         assert_eq!(statement.effect, "Deny");
         assert_eq!(statement.resource, "some_arn");
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_denies_if_cel_validation_fails() {
+        let server = MockServer::start();
+        let _jwks_mock = server.mock(|when, then| {
+            when.method(GET).path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!(
+                    "{{\"keys\":[ {} ]}}",
+                    include_str!("../tests/fixtures/keys/rs256/jwk.json")
+                ));
+        });
+        let iss = "http://localhost";
+        let aud = "test-app";
+        let exp = (Utc::now() + Duration::try_hours(1).unwrap()).timestamp();
+        let encoding_key =
+            EncodingKey::from_rsa_pem(include_bytes!("../tests/fixtures/keys/rs256/private.pem"))
+                .unwrap();
+        let token_header: Header = serde_json::from_value(
+            json!({ "alg": Algorithm::RS256, "kid": "test/keys/rs256/public" }),
+        )
+        .unwrap();
+        // Token with email_verified: false - CEL expression will fail
+        let token = jsonwebtoken::encode(
+            &token_header,
+            &json!({ "iss": iss, "aud": aud, "exp": exp, "sub": "some_user", "preferred_username": "some_user", "email_verified": false }),
+            &encoding_key,
+        ).unwrap();
+        let event = TokenAuthorizerEvent {
+            authorization_token: format!("Bearer {}", token),
+            method_arn: "some_arn".to_string(),
+        };
+        let mut handler = make_simple_handler();
+        handler.keys = Box::leak(Box::new(KeysStorage::new(
+            Url::parse(&server.url("/")).unwrap(),
+            Duration::try_seconds(600).unwrap(),
+        )));
+        // CEL expression that requires email_verified to be true
+        let cel_validator: CelValidator = "claims.email_verified == true".parse().unwrap();
+        handler.cel_validator = Box::leak(Box::new(cel_validator));
+
+        let response = handler.do_call(event).await;
+
+        assert!(response.is_ok());
+        let response = response.unwrap();
+        let statement = response.policy_document.statement.first().unwrap();
+        assert_eq!(statement.effect, "Deny");
+        assert_eq!(statement.resource, "some_arn");
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_allows_if_cel_validation_passes() {
+        let server = MockServer::start();
+        let _jwks_mock = server.mock(|when, then| {
+            when.method(GET).path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!(
+                    "{{\"keys\":[ {} ]}}",
+                    include_str!("../tests/fixtures/keys/rs256/jwk.json")
+                ));
+        });
+        let iss = "http://localhost";
+        let aud = "test-app";
+        let exp = (Utc::now() + Duration::try_hours(1).unwrap()).timestamp();
+        let encoding_key =
+            EncodingKey::from_rsa_pem(include_bytes!("../tests/fixtures/keys/rs256/private.pem"))
+                .unwrap();
+        let token_header: Header = serde_json::from_value(
+            json!({ "alg": Algorithm::RS256, "kid": "test/keys/rs256/public" }),
+        )
+        .unwrap();
+        // Token with email_verified: true - CEL expression will pass
+        let token = jsonwebtoken::encode(
+            &token_header,
+            &json!({ "iss": iss, "aud": aud, "exp": exp, "sub": "some_user", "preferred_username": "some_user", "email_verified": true }),
+            &encoding_key,
+        ).unwrap();
+        let event = TokenAuthorizerEvent {
+            authorization_token: format!("Bearer {}", token),
+            method_arn: "some_arn".to_string(),
+        };
+        let mut handler = make_simple_handler();
+        handler.keys = Box::leak(Box::new(KeysStorage::new(
+            Url::parse(&server.url("/")).unwrap(),
+            Duration::try_seconds(600).unwrap(),
+        )));
+        // CEL expression that requires email_verified to be true
+        let cel_validator: CelValidator = "claims.email_verified == true".parse().unwrap();
+        handler.cel_validator = Box::leak(Box::new(cel_validator));
+
+        let response = handler.do_call(event).await;
+
+        assert!(response.is_ok());
+        let response = response.unwrap();
+        let statement = response.policy_document.statement.first().unwrap();
+        assert_eq!(statement.effect, "Allow");
+        assert_eq!(response.principal_id, "some_user");
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_denies_if_cel_role_check_fails() {
+        let server = MockServer::start();
+        let _jwks_mock = server.mock(|when, then| {
+            when.method(GET).path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!(
+                    "{{\"keys\":[ {} ]}}",
+                    include_str!("../tests/fixtures/keys/rs256/jwk.json")
+                ));
+        });
+        let iss = "http://localhost";
+        let aud = "test-app";
+        let exp = (Utc::now() + Duration::try_hours(1).unwrap()).timestamp();
+        let encoding_key =
+            EncodingKey::from_rsa_pem(include_bytes!("../tests/fixtures/keys/rs256/private.pem"))
+                .unwrap();
+        let token_header: Header = serde_json::from_value(
+            json!({ "alg": Algorithm::RS256, "kid": "test/keys/rs256/public" }),
+        )
+        .unwrap();
+        // Token with roles that don't include "admin"
+        let token = jsonwebtoken::encode(
+            &token_header,
+            &json!({ "iss": iss, "aud": aud, "exp": exp, "sub": "some_user", "preferred_username": "some_user", "roles": ["user", "reader"] }),
+            &encoding_key,
+        ).unwrap();
+        let event = TokenAuthorizerEvent {
+            authorization_token: format!("Bearer {}", token),
+            method_arn: "some_arn".to_string(),
+        };
+        let mut handler = make_simple_handler();
+        handler.keys = Box::leak(Box::new(KeysStorage::new(
+            Url::parse(&server.url("/")).unwrap(),
+            Duration::try_seconds(600).unwrap(),
+        )));
+        // CEL expression that requires admin role
+        let cel_validator: CelValidator =
+            r#"claims.roles.exists(r, r == "admin")"#.parse().unwrap();
+        handler.cel_validator = Box::leak(Box::new(cel_validator));
+
+        let response = handler.do_call(event).await;
+
+        assert!(response.is_ok());
+        let response = response.unwrap();
+        let statement = response.policy_document.statement.first().unwrap();
+        assert_eq!(statement.effect, "Deny");
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_allows_if_cel_role_check_passes() {
+        let server = MockServer::start();
+        let _jwks_mock = server.mock(|when, then| {
+            when.method(GET).path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!(
+                    "{{\"keys\":[ {} ]}}",
+                    include_str!("../tests/fixtures/keys/rs256/jwk.json")
+                ));
+        });
+        let iss = "http://localhost";
+        let aud = "test-app";
+        let exp = (Utc::now() + Duration::try_hours(1).unwrap()).timestamp();
+        let encoding_key =
+            EncodingKey::from_rsa_pem(include_bytes!("../tests/fixtures/keys/rs256/private.pem"))
+                .unwrap();
+        let token_header: Header = serde_json::from_value(
+            json!({ "alg": Algorithm::RS256, "kid": "test/keys/rs256/public" }),
+        )
+        .unwrap();
+        // Token with roles that include "admin"
+        let token = jsonwebtoken::encode(
+            &token_header,
+            &json!({ "iss": iss, "aud": aud, "exp": exp, "sub": "some_user", "preferred_username": "some_user", "roles": ["user", "admin"] }),
+            &encoding_key,
+        ).unwrap();
+        let event = TokenAuthorizerEvent {
+            authorization_token: format!("Bearer {}", token),
+            method_arn: "some_arn".to_string(),
+        };
+        let mut handler = make_simple_handler();
+        handler.keys = Box::leak(Box::new(KeysStorage::new(
+            Url::parse(&server.url("/")).unwrap(),
+            Duration::try_seconds(600).unwrap(),
+        )));
+        // CEL expression that requires admin role
+        let cel_validator: CelValidator =
+            r#"claims.roles.exists(r, r == "admin")"#.parse().unwrap();
+        handler.cel_validator = Box::leak(Box::new(cel_validator));
+
+        let response = handler.do_call(event).await;
+
+        assert!(response.is_ok());
+        let response = response.unwrap();
+        let statement = response.policy_document.statement.first().unwrap();
+        assert_eq!(statement.effect, "Allow");
+        assert_eq!(response.principal_id, "some_user");
     }
 }

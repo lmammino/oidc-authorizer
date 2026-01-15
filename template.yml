@@ -49,7 +49,7 @@ Parameters:
     Type: String
     Description: |
       A comma-separated list of accepted signing algorithms. If one of the provided values matches,
-      the token signing algorithm is considered valid. If left empty, any supported token signing 
+      the token signing algorithm is considered valid. If left empty, any supported token signing
       algorithm is accepted.
       Supported values:
       - ES256
@@ -61,6 +61,20 @@ Parameters:
       - PS512
       - RS512
       - EdDSA
+    Default: ""
+  TokenValidationCel:
+    Type: String
+    Description: |
+      A CEL (Common Expression Language) expression for custom token validation.
+      The expression is evaluated against the decoded token's `header` and `claims`
+      after signature verification. If the expression evaluates to `false`, the token
+      is rejected. If empty, CEL validation is skipped.
+
+      Available variables:
+      - header: JWT header fields (alg, kid, typ, etc.)
+      - claims: JWT payload claims (iss, sub, aud, custom claims, etc.)
+
+      Example: claims.email_verified == true && claims.roles.exists(r, r == "admin")
     Default: ""
   AwsLambdaLogLevel:
     Type: String
@@ -112,6 +126,7 @@ Resources:
           ACCEPTED_ISSUERS: !Ref AcceptedIssuers
           ACCEPTED_AUDIENCES: !Ref AcceptedAudiences
           ACCEPTED_ALGORITHMS: !Ref AcceptedAlgorithms
+          TOKEN_VALIDATION_CEL: !Ref TokenValidationCel
 
 Outputs:
   OidcAuthorizerArn:

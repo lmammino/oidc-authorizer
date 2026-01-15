@@ -47,6 +47,7 @@ This is an AWS Lambda authorizer for API Gateway that validates OIDC-issued JWT 
    - Validates signing algorithm against accepted list
    - Retrieves public key from JWKS endpoint
    - Validates token (signature, expiration, issuer, audience)
+   - Evaluates CEL expression against token header and claims (if configured)
    - Returns Allow/Deny policy document
 
 3. **keys_storage.rs** - Async JWKS key cache with rate-limited refresh. Uses `RwLock` for concurrent access. Fetches keys from OIDC provider's JWKS endpoint and caches them.
@@ -59,6 +60,7 @@ This is an AWS Lambda authorizer for API Gateway that validates OIDC-issued JWT 
 
 - **accepted_algorithms.rs** - Validates JWT signing algorithms against configured allow-list
 - **accepted_claims.rs** - Validates `iss` and `aud` claims
+- **cel_validation.rs** - Evaluates CEL expressions for custom token validation
 - **principalid_claims.rs** - Extracts principal ID from token claims
 - **parse_token_from_header.rs** - Extracts Bearer token from Authorization header
 
@@ -77,6 +79,58 @@ This is an AWS Lambda authorizer for API Gateway that validates OIDC-issued JWT 
 - `MIN_REFRESH_RATE` - Seconds between JWKS refreshes (default: 900)
 - `PRINCIPAL_ID_CLAIMS` - Claims to use for principal ID (default: "preferred_username, sub")
 - `DEFAULT_PRINCIPAL_ID` - Fallback principal ID (default: "unknown")
+- `TOKEN_VALIDATION_CEL` - CEL expression for custom token validation (optional, see below)
+
+## CEL Token Validation
+
+The `TOKEN_VALIDATION_CEL` environment variable accepts a CEL (Common Expression Language) expression that is evaluated against the decoded JWT token's `header` and `claims` after signature verification.
+
+### Available Variables
+
+- `header` - JWT header fields (`alg`, `kid`, `typ`, etc.)
+- `claims` - JWT payload claims (`iss`, `sub`, `aud`, `email`, custom claims, etc.)
+
+### Supported Features
+
+- **Boolean operators**: `&&`, `||`, `!`
+- **Comparisons**: `==`, `!=`, `<`, `>`, `<=`, `>=`
+- **Ternary**: `condition ? true_value : false_value`
+- **Membership**: `in` (e.g., `"admin" in claims.roles`)
+- **String methods**: `startsWith()`, `endsWith()`, `contains()`, `matches()`
+- **List macros**: `exists()`, `all()`
+- **Presence check**: `has()` (e.g., `has(claims.email)`)
+
+### Example Expressions
+
+```cel
+# Require non-empty subject and verified email
+claims.sub != "" && claims.email_verified == true
+
+# Validate JWT header type
+header.typ == "JWT"
+
+# Require admin role (array claim)
+claims.roles.exists(r, r == "admin")
+
+# Email domain allow-list
+claims.email.endsWith("@example.com") || claims.email.endsWith("@example.org")
+
+# Optional claim validation (only check if present)
+!has(claims.acr) || claims.acr == "urn:mfa"
+
+# Validate kid naming convention
+header.kid.startsWith("prod-")
+
+# Combined header and claims validation
+claims.iss == "https://issuer.example.com" && header.kid.startsWith("issuer-")
+```
+
+### Behavior
+
+- If `TOKEN_VALIDATION_CEL` is empty or unset, CEL validation is skipped
+- If the expression evaluates to `false`, the request is denied
+- If CEL compilation fails at startup, the Lambda fails to initialize
+- If CEL execution fails at runtime, the request is denied (fail closed)
 
 ## Testing
 

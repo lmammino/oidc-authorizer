@@ -101,6 +101,59 @@ Here's a list of the configuration options that are supported:
 - **Mandatory**: No
 - **Default value**: `""`
 
+### TokenValidationCel
+
+- **Environment variable**: `TOKEN_VALIDATION_CEL`
+- **Description**: A [CEL (Common Expression Language)](https://cel.dev/) expression for custom token validation. The expression is evaluated against the decoded token's `header` and `claims` after signature verification. If the expression evaluates to `false`, the token is rejected. If empty, CEL validation is skipped.
+- **Mandatory**: No
+- **Default value**: `""`
+
+**Available variables:**
+- `header` - JWT header fields (`alg`, `kid`, `typ`, etc.)
+- `claims` - JWT payload claims (`iss`, `sub`, `aud`, custom claims, etc.)
+
+**Supported features:**
+- Boolean operators: `&&`, `||`, `!`
+- Comparisons: `==`, `!=`, `<`, `>`, `<=`, `>=`
+- String methods: `startsWith()`, `endsWith()`, `contains()`, `matches()`
+- List macros: `exists()`, `all()`
+- Presence check: `has()`
+- Membership: `in`
+
+**Example expressions:**
+```cel
+claims.email_verified == true
+claims.roles.exists(r, r == "admin")
+!has(claims.acr) || claims.acr == "urn:mfa"
+```
+
+> [!TIP]
+> You can test your CEL expressions using the [CEL Playground](https://playcel.undistro.io/). Use the following example as a starting point:
+>
+> **Expression:**
+> ```cel
+> claims.email_verified == true && claims.roles.exists(r, r == "admin")
+> ```
+>
+> **Input (YAML):**
+> ```yaml
+> header:
+>   alg: "RS256"
+>   kid: "my-key-id"
+>   typ: "JWT"
+> claims:
+>   iss: "https://auth.example.com"
+>   sub: "user-123"
+>   aud: "my-api"
+>   exp: 1735689600
+>   iat: 1735686000
+>   email: "user@example.com"
+>   email_verified: true
+>   roles:
+>     - "user"
+>     - "admin"
+> ```
+
 ### AwsLambdaLogLevel
 
 - **Environment variable**: `AWS_LAMBDA_LOG_LEVEL`
@@ -130,7 +183,8 @@ The following section describes the steps that are followed to validate a token:
   4. The token is decoded and validated using the public key. If the validation fails, the token is rejected. This validation also checks the `exp` (expiration time) claim and the `nbf` (not before) claim. If the token is expired or not yet valid, the token is rejected.
   5. The `iss` (issuer) claim is checked against the list of accepted issuers. If the issuer is not found in the list, the token is rejected. If the accept list is empty, any issuer is accepted. If the token contains multiple issuers (array of strings), this check will make sure that at least one of the issuers in the token matches the provided list of accepted issuers.
   6. The `aud` (audience) claim is checked against the list of accepted audiences. If the audience is not found in the list, the token is rejected. If the list is empty, any audience is accepted. If the token contains multiple audiences (array of strings), this check will make sure that at least one of the audiences in the token matches the provided list of accepted audiences.
-  7. If all these checks are passed, the token is considered valid and the request is allowed to proceed. The principal ID is extracted from the token using the list of principal ID claims. If no principal ID claim is found, the default principal ID is used.
+  7. If a CEL expression is configured (`TOKEN_VALIDATION_CEL`), it is evaluated against the token's `header` and `claims`. If the expression evaluates to `false`, the token is rejected. If the expression cannot be evaluated (parse/type/eval error), the token is rejected (fail closed). If no CEL expression is configured, this step is skipped.
+  8. If all these checks are passed, the token is considered valid and the request is allowed to proceed. The principal ID is extracted from the token using the list of principal ID claims. If no principal ID claim is found, the default principal ID is used.
 
 
 ## 🤑 Context Enrichment

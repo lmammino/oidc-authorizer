@@ -9,7 +9,7 @@ This project is a Lambda authorizer intended to validate OIDC-issued JWTs for Am
 We provide security updates for the latest major version.
 
 > [!NOTE]
-> While the project is still in the `0.y.z` versioning phase, the `y` value determines what's the latest major release.
+> While the project is still in the `0.y.z` versioning phase, the `y` value determines what is the latest major release.
 
 ## Reporting a Vulnerability
 

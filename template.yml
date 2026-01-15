@@ -111,7 +111,7 @@ Resources:
     Properties:
       CodeUri: .
       Handler: bootstrap
-      Runtime: provided.al2
+      Runtime: provided.al2023
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemorySize
       Architectures:

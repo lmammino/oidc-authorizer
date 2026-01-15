@@ -35,5 +35,5 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
 ] }
 
 [dev-dependencies]
-httpmock = "0.7.0"
+httpmock = "0.8.2"
 tracing-test = "0.2.4"

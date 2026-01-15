@@ -93,7 +93,7 @@ const authorizerApp = new cdk.aws_sam.CfnApplication(this, "AuthorizerApp", {
     // The timeout to give to the authorizer Lambda.
     LambdaTimeout: "3",
     // Log retention in days (0 = unlimited, 30 recommended for cost savings)
-    LogRetentionDays: "0",
+    LogRetentionDays: "30",
   },
 });
 

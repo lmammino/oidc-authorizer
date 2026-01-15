@@ -166,17 +166,20 @@ Allowed values: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`.
 ### LogGroupName
 
 - **Environment variable**: N/A (only applies to CloudFormation deployments)
-- **Description**: Optional. The name or ARN of an existing CloudWatch Log Group to use for Lambda logs. If specified, the Lambda will log to this group instead of the auto-created one. When using this option, you manage the log group's retention externally. Cannot be used together with LogRetentionDays.
+- **Description**: Optional. The name or ARN of an existing CloudWatch Log Group to use for Lambda logs. If specified, the Lambda will log to this group instead of the auto-created one. When using this option, you manage the log group's retention externally.
 - **Mandatory**: No
 - **Default value**: `""` (uses auto-created log group)
 
 ### LogRetentionDays
 
 - **Environment variable**: N/A (only applies to CloudFormation deployments)
-- **Description**: The number of days to retain logs in the auto-created CloudWatch Log Group. Set to 0 for unlimited retention (default). This is useful for cost optimization. Cannot be used together with LogGroupName.
+- **Description**: The number of days to retain logs in the auto-created CloudWatch Log Group. Set to 0 for unlimited retention (default). This is useful for cost optimization.
 - **Mandatory**: No
 - **Default value**: `0` (unlimited retention)
 - **Allowed values**: `0, 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653`
+
+> [!NOTE]
+> `LogGroupName` and `LogRetentionDays` are mutually exclusive. Use `LogGroupName` to direct logs to an existing log group you manage externally, OR use `LogRetentionDays` to have the stack create a managed log group with the specified retention. Specifying both will cause deployment to fail.
 
 ### StackPrefix
 

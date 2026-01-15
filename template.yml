@@ -142,11 +142,19 @@ Parameters:
     Description: A prefix to be used for exported outputs. Useful if you need to deploy this stack multiple times in the same account.
     Default: ""
 
+Rules:
+  MutuallyExclusiveLogConfig:
+    Assertions:
+      - Assert: !Or
+          - !Equals [!Ref LogGroupName, ""]
+          - !Equals [!Ref LogRetentionDays, "0"]
+        AssertDescription: "LogGroupName and LogRetentionDays cannot both be specified. Use LogGroupName to specify an external log group, OR use LogRetentionDays to create a managed log group with retention."
+
 Conditions:
   UseCustomLogGroup: !Not [!Equals [!Ref LogGroupName, ""]]
   CreateManagedLogGroup: !And
     - !Equals [!Ref LogGroupName, ""]
-    - !Not [!Equals [!Ref LogRetentionDays, 0]]
+    - !Not [!Equals [!Ref LogRetentionDays, "0"]]
   ConfigureLogging: !Or
     - !Condition UseCustomLogGroup
     - !Condition CreateManagedLogGroup

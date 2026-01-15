@@ -41,8 +41,8 @@ To help us triage quickly, please include:
 
 We aim to follow coordinated vulnerability disclosure:
 
-- **Acknowledgement:** within **45 days**
-- **Initial triage update:** within **60 days**
+- **Acknowledgement:** within **3 business days**
+- **Initial triage update:** within **10 business days**
 - If the issue is accepted, we will work on a fix and coordinate a disclosure timeline with you.
 - If the issue is declined, we will explain why (e.g., not a security issue, out of scope, or not reproducible).
 

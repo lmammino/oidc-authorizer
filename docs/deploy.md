@@ -43,6 +43,8 @@ Resources:
         LambdaMemorySize: "128"
         # The timeout to give to the authorizer Lambda.
         LambdaTimeout: "3"
+        # Log retention in days for cost saving (default is 0 = unlimited)
+        LogRetentionDays: "30"
 
   # YOUR APIs HERE
   ApiGatewayApi:
@@ -90,6 +92,8 @@ const authorizerApp = new cdk.aws_sam.CfnApplication(this, "AuthorizerApp", {
     LambdaMemorySize: "128",
     // The timeout to give to the authorizer Lambda.
     LambdaTimeout: "3",
+    // Log retention in days for cost saving (default is 0 = unlimited)
+    LogRetentionDays: "30",
   },
 });
 

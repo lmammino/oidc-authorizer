@@ -79,7 +79,7 @@ Parameters:
   AwsLambdaLogLevel:
     Type: String
     Description: |
-      The log level used when executing the authorizer lambda. You can set it to DEBUG to make it very verbose if you need more information 
+      The log level used when executing the authorizer lambda. You can set it to DEBUG to make it very verbose if you need more information
       to troubleshoot an issue. In general you should not change this, because if you produce more logs than necessary that might have an impact on cost.
     Default: INFO
     AllowedValues:
@@ -88,6 +88,45 @@ Parameters:
       - INFO
       - WARN
       - ERROR
+  LogGroupName:
+    Type: String
+    Description: |
+      Optional. The name or ARN of an existing CloudWatch Log Group to use for Lambda logs.
+      If specified, the Lambda will log to this group instead of the auto-created one.
+      When using this option, you manage the log group's retention externally.
+      Cannot be used together with LogRetentionDays.
+    Default: ""
+  LogRetentionDays:
+    Type: Number
+    Description: |
+      Optional. The number of days to retain logs in the auto-created CloudWatch Log Group.
+      If set to 0 (default), logs are retained indefinitely.
+      Cannot be used together with LogGroupName.
+    Default: 0
+    AllowedValues:
+      - 0
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+      - 120
+      - 150
+      - 180
+      - 365
+      - 400
+      - 545
+      - 731
+      - 1096
+      - 1827
+      - 2192
+      - 2557
+      - 2922
+      - 3288
+      - 3653
   LambdaTimeout:
     Type: Number
     Description: The timeout to give to the authorizer Lambda.
@@ -103,7 +142,31 @@ Parameters:
     Description: A prefix to be used for exported outputs. Useful if you need to deploy this stack multiple times in the same account.
     Default: ""
 
+Rules:
+  MutuallyExclusiveLogConfig:
+    Assertions:
+      - Assert: !Or
+          - !Equals [!Ref LogGroupName, ""]
+          - !Equals [!Ref LogRetentionDays, "0"]
+        AssertDescription: "LogGroupName and LogRetentionDays cannot both be specified. Use LogGroupName to specify an external log group, OR use LogRetentionDays to create a managed log group with retention."
+
+Conditions:
+  UseCustomLogGroup: !Not [!Equals [!Ref LogGroupName, ""]]
+  CreateManagedLogGroup: !And
+    - !Equals [!Ref LogGroupName, ""]
+    - !Not [!Equals [!Ref LogRetentionDays, "0"]]
+  ConfigureLogging: !Or
+    - !Condition UseCustomLogGroup
+    - !Condition CreateManagedLogGroup
+
 Resources:
+  OidcAuthorizerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: CreateManagedLogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-OidcAuthorizer"
+      RetentionInDays: !Ref LogRetentionDays
+
   OidcAuthorizer:
     Type: AWS::Serverless::Function
     Metadata:
@@ -116,6 +179,13 @@ Resources:
       MemorySize: !Ref LambdaMemorySize
       Architectures:
         - arm64
+      LoggingConfig: !If
+        - ConfigureLogging
+        - LogGroup: !If
+            - UseCustomLogGroup
+            - !Ref LogGroupName
+            - !Ref OidcAuthorizerLogGroup
+        - !Ref "AWS::NoValue"
       Environment:
         Variables:
           AWS_LAMBDA_LOG_LEVEL: !Ref AwsLambdaLogLevel
@@ -134,3 +204,14 @@ Outputs:
     Value: !GetAtt OidcAuthorizer.Arn
     Export:
       Name: !Sub "${StackPrefix}OidcAuthorizerArn"
+  OidcAuthorizerLogGroupName:
+    Description: The CloudWatch Log Group name for the OIDC Authorizer Lambda
+    Value: !If
+      - UseCustomLogGroup
+      - !Ref LogGroupName
+      - !If
+        - CreateManagedLogGroup
+        - !Ref OidcAuthorizerLogGroup
+        - !Sub "/aws/lambda/${OidcAuthorizer}"
+    Export:
+      Name: !Sub "${StackPrefix}OidcAuthorizerLogGroupName"

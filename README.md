@@ -157,11 +157,26 @@ claims.roles.exists(r, r == "admin")
 ### AwsLambdaLogLevel
 
 - **Environment variable**: `AWS_LAMBDA_LOG_LEVEL`
-- **Description**: The log level used when executing the authorizer lambda. You can set it to DEBUG to make it very verbose if you need more information 
+- **Description**: The log level used when executing the authorizer lambda. You can set it to DEBUG to make it very verbose if you need more information
 to troubleshoot an issue. In general, you should not change this, because if you produce more logs than necessary that might have an impact on cost.
 Allowed values: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`.
 - **Mandatory**: No
 - **Default value**: `"INFO"`
+
+### LogGroupName
+
+- **Environment variable**: N/A (only applies to CloudFormation deployments)
+- **Description**: Optional. The name or ARN of an existing CloudWatch Log Group to use for Lambda logs. If specified, the Lambda will log to this group instead of the auto-created one. When using this option, you manage the log group's retention externally. Cannot be used together with LogRetentionDays.
+- **Mandatory**: No
+- **Default value**: `""` (uses auto-created log group)
+
+### LogRetentionDays
+
+- **Environment variable**: N/A (only applies to CloudFormation deployments)
+- **Description**: The number of days to retain logs in the auto-created CloudWatch Log Group. Set to 0 for unlimited retention (default). This is useful for cost optimization. Cannot be used together with LogGroupName.
+- **Mandatory**: No
+- **Default value**: `0` (unlimited retention)
+- **Allowed values**: `0, 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653`
 
 ### StackPrefix
 

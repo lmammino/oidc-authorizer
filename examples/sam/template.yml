@@ -57,6 +57,13 @@ Resources:
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 
+  # Log group for the authorizer Lambda with retention for cost saving (default is unlimited)
+  OidcLambdaAuthorizerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-OidcLambdaAuthorizer"
+      RetentionInDays: 30
+
   # Authorizer Lambda
   OidcLambdaAuthorizer:
     Type: AWS::Serverless::Function
@@ -70,6 +77,8 @@ Resources:
       MemorySize: 128 # 👀 CHANGE IF NEEDED
       Architectures:
         - arm64
+      LoggingConfig:
+        LogGroup: !Ref OidcLambdaAuthorizerLogGroup
       Environment:
         Variables:
           # 👀 CHANGE THE FOLLOWING VALUES:

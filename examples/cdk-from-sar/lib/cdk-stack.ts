@@ -11,7 +11,7 @@ export class CdkStack extends cdk.Stack {
     const authorizerApp = new cdk.aws_sam.CfnApplication(this, 'AuthorizerApp', {
       location: {
         applicationId: 'arn:aws:serverlessrepo:eu-west-1:795006566846:applications/oidc-authorizer',
-        semanticVersion: '0.2.1' // 👀 CHANGE ME
+        semanticVersion: '0.3.0' // 👀 CHANGE ME
       },
       parameters: {
         // 👀 CHANGE THE FOLLOWING PARAMETERS
@@ -27,7 +27,9 @@ export class CdkStack extends cdk.Stack {
         // The amount of memory (in MB) to give to the authorizer Lambda.
         LambdaMemorySize: "128",
         // The timeout to give to the authorizer Lambda.
-        LambdaTimeout: "3"
+        LambdaTimeout: "3",
+        // Log retention in days for cost saving (default is 0 = unlimited)
+        LogRetentionDays: "30"
       }
     })
 

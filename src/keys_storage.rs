@@ -123,12 +123,12 @@ mod tests {
         let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate);
         let key_result = keys_cache.get(key_id).await;
         assert!(key_result.is_ok());
-        jwks_mock.assert_hits(1);
+        jwks_mock.assert_calls(1);
 
         // if it reads the key again it should be taken straight away from cache
         let key_result = keys_cache.get(key_id).await;
         assert!(key_result.is_ok());
-        jwks_mock.assert_hits(1); // no new hits
+        jwks_mock.assert_calls(1); // no new hits
     }
 
     #[tokio::test]

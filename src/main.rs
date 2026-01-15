@@ -1,5 +1,6 @@
 use accepted_algorithms::AcceptedAlgorithms;
 use accepted_claims::AcceptedClaims;
+use cel_validation::CelValidator;
 use chrono::Duration;
 use keys_storage::KeysStorage;
 use lambda_runtime::{run, tracing, Error};
@@ -8,6 +9,7 @@ use reqwest::Url;
 use std::env;
 mod accepted_algorithms;
 mod accepted_claims;
+mod cel_validation;
 mod handler;
 mod keys_storage;
 mod keysmap;
@@ -41,6 +43,8 @@ async fn main() -> Result<(), Error> {
         AcceptedClaims::from_comma_separated_values(accepted_audiences.as_str(), "aud".to_string());
     let accepted_signing_algorithms = env::var("ACCEPTED_ALGORITHMS").unwrap_or_default();
     let accepted_signing_algorithms: AcceptedAlgorithms = accepted_signing_algorithms.parse()?; // infallible
+    let token_validation_cel = env::var("TOKEN_VALIDATION_CEL").unwrap_or_default();
+    let cel_validator: CelValidator = token_validation_cel.parse()?;
 
     tracing::init_default_subscriber();
 
@@ -51,6 +55,7 @@ async fn main() -> Result<(), Error> {
         Box::leak(Box::new(accepted_issuers)),
         Box::leak(Box::new(accepted_audiences)),
         Box::leak(Box::new(accepted_signing_algorithms)),
+        Box::leak(Box::new(cel_validator)),
     ))
     .await
 }

@@ -80,6 +80,8 @@ Resources:
           ACCEPTED_ISSUERS: "https://login.microsoftonline.com/3e4abf5a-fdc9-485c-9853-af03c4a32976/v2.0"
           ACCEPTED_AUDIENCES: "5c8efa13-dfa5-48b5-83c3-6fe8bb819a0f"
           ACCEPTED_ALGORITHMS: ""
+          # A CEL expression for custom token validation (optional)
+          TOKEN_VALIDATION_CEL: ""
 
   # 👀 CHANGE: Define your APIs here
   SampleApiFunction1:

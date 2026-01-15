@@ -22,6 +22,8 @@ export class CdkStack extends cdk.Stack {
         JwksUri: "https://login.microsoftonline.com/3e4abf5a-fdc9-485c-9853-af03c4a32976/discovery/v2.0/keys",
         MinRefreshRate: "900",
         PrincipalIdClaims: "preferred_username, sub",
+        // A CEL expression for custom token validation (optional)
+        TokenValidationCel: "",
         // The amount of memory (in MB) to give to the authorizer Lambda.
         LambdaMemorySize: "128",
         // The timeout to give to the authorizer Lambda.

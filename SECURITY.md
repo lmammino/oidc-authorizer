@@ -51,8 +51,8 @@ We aim to follow coordinated vulnerability disclosure:
 We request that you keep vulnerability details private until:
 
 - A fix has been released, **or**
-- **90 days** has passed since the initial report,
-  whichever comes first—unless there is evidence of active exploitation, in which case we may accelerate mitigation and disclosure.
+- **90 days** have passed since our initial acknowledgement or triage update,
+  whichever comes first—unless there is evidence of active exploitation, in which case we may accelerate mitigation and disclosure. The 90‑day period is measured from the time we first acknowledge or provide a substantive triage update for your report, not from the time you initially submit it.
 
 ### Scope guidance
 

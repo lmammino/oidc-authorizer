@@ -367,4 +367,57 @@ mod tests {
         let validator: CelValidator = Default::default();
         assert_eq!(validator.expression(), "");
     }
+
+    #[test]
+    fn it_should_handle_null_values_in_claims() {
+        let validator: CelValidator = "!has(claims.optional_field)".parse().unwrap();
+        let header = Header::default();
+        let claims = json!({"sub": "user123", "optional_field": null});
+        // null fields are present but have null value
+        assert!(validator.validate(&header, &claims).is_err());
+    }
+
+    #[test]
+    fn it_should_handle_null_check_with_equality() {
+        let validator: CelValidator = "claims.optional_field == null".parse().unwrap();
+        let header = Header::default();
+        let claims = json!({"sub": "user123", "optional_field": null});
+        assert!(validator.validate(&header, &claims).is_ok());
+    }
+
+    #[test]
+    fn it_should_handle_float_values_in_claims() {
+        let validator: CelValidator = "claims.score > 0.5".parse().unwrap();
+        let header = Header::default();
+        let claims = json!({"sub": "user123", "score": 0.75});
+        assert!(validator.validate(&header, &claims).is_ok());
+    }
+
+    #[test]
+    fn it_should_handle_large_unsigned_integers() {
+        // Use a value larger than i64::MAX to test the u64 branch
+        let validator: CelValidator = "claims.big_number > uint(0)".parse().unwrap();
+        let header = Header::default();
+        let large_num: u64 = 9223372036854775808; // i64::MAX + 1
+        let claims = json!({"sub": "user123", "big_number": large_num});
+        assert!(validator.validate(&header, &claims).is_ok());
+    }
+
+    #[test]
+    fn it_should_handle_negative_integers() {
+        let validator: CelValidator = "claims.offset < 0".parse().unwrap();
+        let header = Header::default();
+        let claims = json!({"sub": "user123", "offset": -100});
+        assert!(validator.validate(&header, &claims).is_ok());
+    }
+
+    #[test]
+    fn it_should_handle_execution_errors() {
+        // Try to access a method on a non-existent type
+        let validator: CelValidator = "claims.missing_field.startsWith(\"x\")".parse().unwrap();
+        let header = Header::default();
+        let claims = json!({"sub": "user123"});
+        let result = validator.validate(&header, &claims);
+        assert!(matches!(result, Err(CelValidationError::ExecutionError(_))));
+    }
 }

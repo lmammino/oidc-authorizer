@@ -47,7 +47,7 @@ impl Handler {
             Ok(token) => token,
             Err(e) => {
                 tracing::info!(
-                    "Failed to extract token fron header (header_value='{}'): {}",
+                    "Failed to extract token from header (header_value='{}'): {}",
                     event.authorization_token,
                     e
                 );

@@ -37,4 +37,4 @@ cel-interpreter = { version = "0.10", features = ["json", "regex", "chrono"] }
 
 [dev-dependencies]
 httpmock = "0.8.2"
-tracing-test = "0.2.4"
+tracing-test = "0.2.6"

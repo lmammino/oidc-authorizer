@@ -164,6 +164,7 @@ mod tests {
         let key_storage = Box::leak(Box::new(KeysStorage::new(
             Url::parse("http://localhost").unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
         let principal_id_claims =
             Box::leak(Box::new(PrincipalIDClaims::from_comma_separated_values(
@@ -231,7 +232,7 @@ mod tests {
             AcceptedClaims::from_comma_separated_values(aud, "aud".to_string());
         let accepted_signing_algorithms: AcceptedAlgorithms = Default::default();
         let cel_validator: CelValidator = Default::default();
-        let keys = KeysStorage::new(Url::parse(&jwks_uri).unwrap(), min_refresh_rate);
+        let keys = KeysStorage::new(Url::parse(&jwks_uri).unwrap(), min_refresh_rate, None);
         let mut handler = Handler::new(
             Box::leak(Box::new(keys)),
             Box::leak(Box::new(principal_id_claims)),
@@ -512,6 +513,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
 
         let response = handler.do_call(event).await;
@@ -560,6 +562,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
 
         let response = handler.do_call(event).await;
@@ -607,6 +610,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
 
         let response = handler.do_call(event).await;
@@ -654,6 +658,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
 
         let response = handler.do_call(event).await;
@@ -702,6 +707,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
         // CEL expression that requires email_verified to be true
         let cel_validator: CelValidator = "claims.email_verified == true".parse().unwrap();
@@ -753,6 +759,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
         // CEL expression that requires email_verified to be true
         let cel_validator: CelValidator = "claims.email_verified == true".parse().unwrap();
@@ -804,6 +811,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
         // CEL expression that requires admin role
         let cel_validator: CelValidator =
@@ -855,6 +863,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
         // CEL expression that requires admin role
         let cel_validator: CelValidator =

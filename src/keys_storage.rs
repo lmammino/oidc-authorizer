@@ -2,7 +2,7 @@ use crate::keysmap::KeysMap;
 use chrono::{DateTime, Duration, Utc};
 use jsonwebtoken::{jwk::JwkSet, DecodingKey};
 use reqwest::{Client, Url};
-use std::sync::Arc;
+use std::{fs::File, io::Error, path::PathBuf, sync::Arc};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -22,10 +22,11 @@ pub struct KeysStorage {
     client: Client,
     storage: Arc<RwLock<(KeysMap, DateTime<Utc>)>>,
     min_refresh_rate: Duration,
+    jwks_pre_cached_file_path: Option<PathBuf>,
 }
 
 impl KeysStorage {
-    pub fn new(jwks_uri: Url, min_refresh_rate: Duration) -> Self {
+    pub fn new(jwks_uri: Url, min_refresh_rate: Duration, jwks_pre_cached_file_path:Option<PathBuf>) -> Self {
         Self {
             jwks_uri,
             min_refresh_rate,
@@ -34,6 +35,7 @@ impl KeysStorage {
                 .build()
                 .unwrap(),
             storage: Arc::new(RwLock::new((KeysMap::default(), Default::default()))),
+            jwks_pre_cached_file_path,
         }
     }
 
@@ -43,7 +45,28 @@ impl KeysStorage {
         match maybe_key {
             Some(key) => return Ok(key.clone()),
             None => {
+                // Is the memory storage expired? Determine this before we muddy the memory from L2.
                 let should_refresh = read_guard.1 + self.min_refresh_rate < Utc::now();
+
+                let res = self.load_cached_file().await;
+                match res {
+                  Ok(_) => {
+                    let read_guard = self.storage.read().await;
+                    let maybe_key = read_guard.0.get(key_id);
+                    match maybe_key {
+                      Some(key) => return Ok(key.clone()),
+                      None => {
+                        tracing::error!("Key not found in cached JWKS file: {}", key_id);
+                        // continue to refresh the jwks
+                      }
+                    }
+                  }
+                  Err(e) => {
+                    tracing::error!("Failed to load cached JWKS file: {}", e);
+                    // continue to refresh the jwks
+                  }
+                }
+
                 if should_refresh {
                     drop(read_guard);
                     self.refresh().await?;
@@ -58,6 +81,21 @@ impl KeysStorage {
         };
 
         Err(KeysStorageError::KeyNotFound(key_id.to_string()))
+    }
+
+    async fn load_cached_file(&self) -> Result<(), Error> {
+        if self.jwks_pre_cached_file_path.is_none() {
+            tracing::debug!("Invalid JWKS pre-cache file path. Skipping cache load from disk.");
+            return Ok(());
+        }
+        let path = self.jwks_pre_cached_file_path.as_ref().unwrap();
+        tracing::debug!("Loading cached JWKS from '{}'", path.as_path().display());
+        let file = File::open(path.as_path())?;
+        let jwks: JwkSet = serde_json::from_reader(file)?;
+        let mut write_guard = self.storage.write().await;
+        write_guard.0 = jwks.into();
+        write_guard.1 = write_guard.1.min(Utc::now());
+        Ok(())
     }
 
     async fn refresh(&self) -> Result<(), KeysStorageError> {
@@ -85,7 +123,7 @@ mod tests {
         let jwks_uri = Url::parse("https://example.com/jwks.json").unwrap();
         // SAFETY: safe to unwrap since (60 seconds) <= (i64::MAX / 1000)
         let min_refresh_rate = Duration::try_seconds(60).unwrap();
-        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate);
+        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate, None);
 
         assert_eq!(keys_cache.jwks_uri, jwks_uri);
         assert_eq!(keys_cache.min_refresh_rate, min_refresh_rate);
@@ -112,7 +150,7 @@ mod tests {
                                 "use":"sig"
                             }
                         ]
-                    }            
+                    }
                 "#);
         });
 
@@ -120,7 +158,7 @@ mod tests {
         let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
         // SAFETY: safe to unwrap since (60 seconds) <= (i64::MAX / 1000)
         let min_refresh_rate = Duration::try_seconds(60).unwrap();
-        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate);
+        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate, None);
         let key_result = keys_cache.get(key_id).await;
         assert!(key_result.is_ok());
         jwks_mock.assert_calls(1);
@@ -151,7 +189,7 @@ mod tests {
                                 "use":"sig"
                             }
                         ]
-                    }            
+                    }
                 "#);
         });
 
@@ -159,7 +197,7 @@ mod tests {
         let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
         // SAFETY: safe to unwrap since (60 seconds) <= (i64::MAX / 1000)
         let min_refresh_rate = Duration::try_seconds(60).unwrap();
-        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate);
+        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate, None);
         let key_result = keys_cache.get(key_id).await;
         if let Err(KeysStorageError::KeyNotFound(_)) = key_result {
             // expected

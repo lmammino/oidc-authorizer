@@ -20,7 +20,7 @@ mod principalid_claims;
 fn maybe_get_jwks_cache_path() -> Option<PathBuf> {
     env::var("JWKS_PRE_CACHED_FILE_PATH")
         .ok()
-        .map(|path| PathBuf::from(path))
+        .map(PathBuf::from)
 }
 
 #[tokio::main]

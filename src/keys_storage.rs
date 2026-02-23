@@ -26,7 +26,11 @@ pub struct KeysStorage {
 }
 
 impl KeysStorage {
-    pub fn new(jwks_uri: Url, min_refresh_rate: Duration, jwks_pre_cached_file_path:Option<PathBuf>) -> Self {
+    pub fn new(
+        jwks_uri: Url,
+        min_refresh_rate: Duration,
+        jwks_pre_cached_file_path: Option<PathBuf>,
+    ) -> Self {
         Self {
             jwks_uri,
             min_refresh_rate,
@@ -50,21 +54,21 @@ impl KeysStorage {
 
                 let res = self.load_cached_file().await;
                 match res {
-                  Ok(_) => {
-                    let read_guard = self.storage.read().await;
-                    let maybe_key = read_guard.0.get(key_id);
-                    match maybe_key {
-                      Some(key) => return Ok(key.clone()),
-                      None => {
-                        tracing::error!("Key not found in cached JWKS file: {}", key_id);
-                        // continue to refresh the jwks
-                      }
+                    Ok(_) => {
+                        let read_guard = self.storage.read().await;
+                        let maybe_key = read_guard.0.get(key_id);
+                        match maybe_key {
+                            Some(key) => return Ok(key.clone()),
+                            None => {
+                                tracing::error!("Key not found in cached JWKS file: {}", key_id);
+                                // continue to refresh the jwks
+                            }
+                        }
                     }
-                  }
-                  Err(e) => {
-                    tracing::error!("Failed to load cached JWKS file: {}", e);
-                    // continue to refresh the jwks
-                  }
+                    Err(e) => {
+                        tracing::error!("Failed to load cached JWKS file: {}", e);
+                        // continue to refresh the jwks
+                    }
                 }
 
                 if should_refresh {

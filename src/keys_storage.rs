@@ -76,7 +76,10 @@ impl KeysStorage {
             drop(read_guard);
         }
 
-        tracing::error!("Key not found in memory storage or cached JWKS file: {}", key_id);
+        tracing::error!(
+            "Key not found in memory storage or cached JWKS file: {}",
+            key_id
+        );
         Err(KeysStorageError::KeyNotFound(key_id.to_string()))
     }
 
@@ -315,7 +318,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn it_should_return_key_from_valid_jwks_cache_file(){
+    async fn it_should_return_key_from_valid_jwks_cache_file() {
         println!("it_should_return_key_from_valid_jwks_cache_file");
         let server = MockServer::start();
         let jwks_mock = server.mock(|when, then| {

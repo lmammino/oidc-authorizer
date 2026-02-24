@@ -120,9 +120,9 @@ impl KeysStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use httpmock::{prelude::*};
-    use tempfile::NamedTempFile;
+    use httpmock::prelude::*;
     use serde_json::json;
+    use tempfile::NamedTempFile;
 
     #[tokio::test]
     async fn it_should_initialize_an_empty_instance() {
@@ -238,7 +238,11 @@ mod tests {
         });
         let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
         let min_refresh_rate = Duration::try_seconds(60).unwrap();
-        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate, Some(PathBuf::from("invalid")));
+        let keys_cache = KeysStorage::new(
+            jwks_uri.clone(),
+            min_refresh_rate,
+            Some(PathBuf::from("invalid")),
+        );
         let key_result = keys_cache.get("test/keys/rs256/public").await;
         assert!(key_result.is_ok());
         jwks_mock.assert();
@@ -269,7 +273,11 @@ mod tests {
         });
         let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
         let min_refresh_rate = Duration::try_seconds(60).unwrap();
-        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate, Some(PathBuf::from("{{invalid")));
+        let keys_cache = KeysStorage::new(
+            jwks_uri.clone(),
+            min_refresh_rate,
+            Some(PathBuf::from("{{invalid")),
+        );
         let key_result = keys_cache.get("test/keys/rs256/public").await;
         assert!(key_result.is_ok());
         jwks_mock.assert();

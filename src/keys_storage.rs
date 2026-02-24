@@ -46,44 +46,37 @@ impl KeysStorage {
     pub async fn get(&self, key_id: &str) -> Result<DecodingKey, KeysStorageError> {
         let read_guard = self.storage.read().await;
         let maybe_key = read_guard.0.get(key_id);
-        match maybe_key {
-            Some(key) => return Ok(key.clone()),
-            None => {
-                // Is the memory storage expired? Determine this before we muddy the memory from L2.
-                let should_refresh = read_guard.1 + self.min_refresh_rate < Utc::now();
+        if let Some(key) = maybe_key {
+            tracing::debug!("Key found in memory storage: {}", key_id);
+            return Ok(key.clone());
+        }
 
-                let res = self.load_cached_file().await;
-                match res {
-                    Ok(_) => {
-                        let read_guard = self.storage.read().await;
-                        let maybe_key = read_guard.0.get(key_id);
-                        match maybe_key {
-                            Some(key) => return Ok(key.clone()),
-                            None => {
-                                tracing::error!("Key not found in cached JWKS file: {}", key_id);
-                                // continue to refresh the jwks
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        tracing::error!("Failed to load cached JWKS file: {}", e);
-                        // continue to refresh the jwks
-                    }
-                }
+        // Is the memory storage expired? Determine this before we muddy the memory from L2.
+        let should_refresh = read_guard.1 + self.min_refresh_rate < Utc::now();
+        drop(read_guard); // so that we can write to storage.
 
-                if should_refresh {
-                    drop(read_guard);
-                    self.refresh().await?;
-                    let read_guard = self.storage.read().await;
-                    let maybe_key = read_guard.0.get(key_id);
-                    if let Some(key) = maybe_key {
-                        return Ok(key.clone());
-                    }
-                    drop(read_guard);
-                }
+        let res = self.load_cached_file().await;
+        if res.is_ok() {
+            let read_guard = self.storage.read().await;
+            let maybe_key = read_guard.0.get(key_id);
+            if let Some(key) = maybe_key {
+                tracing::debug!("Key found in cached JWKS file: {}", key_id);
+                return Ok(key.clone());
             }
-        };
+        }
 
+        if should_refresh {
+            tracing::debug!("Refreshing JWKS from origin.");
+            self.refresh().await?;
+            let read_guard = self.storage.read().await;
+            let maybe_key = read_guard.0.get(key_id);
+            if let Some(key) = maybe_key {
+                return Ok(key.clone());
+            }
+            drop(read_guard);
+        }
+
+        tracing::error!("Key not found in memory storage or cached JWKS file: {}", key_id);
         Err(KeysStorageError::KeyNotFound(key_id.to_string()))
     }
 
@@ -319,5 +312,58 @@ mod tests {
         let key_result = keys_cache.get("test/keys/rs256/public").await;
         assert!(key_result.is_ok());
         jwks_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn it_should_return_key_from_valid_jwks_cache_file(){
+        println!("it_should_return_key_from_valid_jwks_cache_file");
+        let server = MockServer::start();
+        let jwks_mock = server.mock(|when, then| {
+            when.method(GET)
+                .path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(r#"
+                    {
+                        "keys":[
+                            {
+                                "kty":"RSA",
+                                "n":"0TF4RX87dOllFp12D8IZvSoJyp8D4IZ3JmlVG7Au2GOSp1WcrAqjyq3Gk-a_1tT31FHCLVqjH9vXE8g1sXika4mp8YCWyMfjT3KsfrciI_Fw-nBCawnqewBDcBo4cvBgTjHNBjcjGNr0U_4eCZPjP8pwqw6HrRgHf-ypNmtgWG6_2EaK-tOJtnNgGRtCYGZdqMDfKLDuqzU5-gT2ejt9P1kNAvFMMUm4dTOK-vJ7jwGKWZEzupHBlHMqu4K4IRoFbVr2XsAzV5YQ0u_r26NVtQTDUdTp9ixhexUp0eXye6m3uMklqUOHJbiqNjmH2ye4yXVJI0w6BFOeXXlwyR6slw",
+                                "e":"AQAB",
+                                "alg":"RS256",
+                                "kid":"test/keys/rs256/public",
+                                "use":"sig"
+                            }
+                        ]
+                    }
+                "#);
+        });
+        println!("server setup complete");
+        let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
+        let file = NamedTempFile::new().unwrap();
+        let path = file.path().to_path_buf();
+        println!("path: {}", path.display());
+        let dynamic_json = json!({
+            "keys":[
+                {
+                    "kty":"RSA",
+                    "n":"0TF4RX87dOllFp12D8IZvSoJyp8D4IZ3JmlVG7Au2GOSp1WcrAqjyq3Gk-a_1tT31FHCLVqjH9vXE8g1sXika4mp8YCWyMfjT3KsfrciI_Fw-nBCawnqewBDcBo4cvBgTjHNBjcjGNr0U_4eCZPjP8pwqw6HrRgHf-ypNmtgWG6_2EaK-tOJtnNgGRtCYGZdqMDfKLDuqzU5-gT2ejt9P1kNAvFMMUm4dTOK-vJ7jwGKWZEzupHBlHMqu4K4IRoFbVr2XsAzV5YQ0u_r26NVtQTDUdTp9ixhexUp0eXye6m3uMklqUOHJbiqNjmH2ye4yXVJI0w6BFOeXXlwyR6slw",
+                    "e":"AQAB",
+                    "alg":"RS256",
+                    "kid":"test/keys/rs256/public",
+                    "use":"sig"
+                }
+            ]
+        });
+        std::fs::write(path.clone(), dynamic_json.to_string()).unwrap();
+        println!("file written to path: {}", path.display());
+
+        let min_refresh_rate = Duration::try_seconds(60).unwrap();
+        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate, Some(path));
+        println!("keys_cache created");
+        let key_result = keys_cache.get("test/keys/rs256/public").await;
+        println!("key_result");
+        assert!(key_result.is_ok());
+        jwks_mock.assert_calls(0);
     }
 }

@@ -120,7 +120,9 @@ impl KeysStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use httpmock::prelude::*;
+    use httpmock::{prelude::*};
+    use tempfile::NamedTempFile;
+    use serde_json::json;
 
     #[tokio::test]
     async fn it_should_initialize_an_empty_instance() {
@@ -196,7 +198,6 @@ mod tests {
                     }
                 "#);
         });
-
         let key_id = "invalid";
         let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
         // SAFETY: safe to unwrap since (60 seconds) <= (i64::MAX / 1000)
@@ -209,6 +210,106 @@ mod tests {
             panic!("Expected a KeyNotFound error");
         }
 
+        jwks_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn it_should_not_error_if_the_cache_file_path_is_invalid() {
+        let server = MockServer::start();
+        let jwks_mock = server.mock(|when, then| {
+            when.method(GET)
+                .path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(r#"
+                    {
+                        "keys":[
+                            {
+                                "kty":"RSA",
+                                "n":"0TF4RX87dOllFp12D8IZvSoJyp8D4IZ3JmlVG7Au2GOSp1WcrAqjyq3Gk-a_1tT31FHCLVqjH9vXE8g1sXika4mp8YCWyMfjT3KsfrciI_Fw-nBCawnqewBDcBo4cvBgTjHNBjcjGNr0U_4eCZPjP8pwqw6HrRgHf-ypNmtgWG6_2EaK-tOJtnNgGRtCYGZdqMDfKLDuqzU5-gT2ejt9P1kNAvFMMUm4dTOK-vJ7jwGKWZEzupHBlHMqu4K4IRoFbVr2XsAzV5YQ0u_r26NVtQTDUdTp9ixhexUp0eXye6m3uMklqUOHJbiqNjmH2ye4yXVJI0w6BFOeXXlwyR6slw",
+                                "e":"AQAB",
+                                "alg":"RS256",
+                                "kid":"test/keys/rs256/public",
+                                "use":"sig"
+                            }
+                        ]
+                    }
+                "#);
+        });
+        let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
+        let min_refresh_rate = Duration::try_seconds(60).unwrap();
+        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate, Some(PathBuf::from("invalid")));
+        let key_result = keys_cache.get("test/keys/rs256/public").await;
+        assert!(key_result.is_ok());
+        jwks_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn it_should_not_return_an_error_if_the_cached_file_contains_invalid_json() {
+        let server = MockServer::start();
+        let jwks_mock = server.mock(|when, then| {
+            when.method(GET)
+                .path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(r#"
+                    {
+                        "keys":[
+                            {
+                                "kty":"RSA",
+                                "n":"0TF4RX87dOllFp12D8IZvSoJyp8D4IZ3JmlVG7Au2GOSp1WcrAqjyq3Gk-a_1tT31FHCLVqjH9vXE8g1sXika4mp8YCWyMfjT3KsfrciI_Fw-nBCawnqewBDcBo4cvBgTjHNBjcjGNr0U_4eCZPjP8pwqw6HrRgHf-ypNmtgWG6_2EaK-tOJtnNgGRtCYGZdqMDfKLDuqzU5-gT2ejt9P1kNAvFMMUm4dTOK-vJ7jwGKWZEzupHBlHMqu4K4IRoFbVr2XsAzV5YQ0u_r26NVtQTDUdTp9ixhexUp0eXye6m3uMklqUOHJbiqNjmH2ye4yXVJI0w6BFOeXXlwyR6slw",
+                                "e":"AQAB",
+                                "alg":"RS256",
+                                "kid":"test/keys/rs256/public",
+                                "use":"sig"
+                            }
+                        ]
+                    }
+                "#);
+        });
+        let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
+        let min_refresh_rate = Duration::try_seconds(60).unwrap();
+        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate, Some(PathBuf::from("{{invalid")));
+        let key_result = keys_cache.get("test/keys/rs256/public").await;
+        assert!(key_result.is_ok());
+        jwks_mock.assert();
+    }
+
+    #[tokio::test]
+    async fn it_should_handle_invalid_jwks_cached_file_by_falling_back_to_refetching_jwks() {
+        let server = MockServer::start();
+        let jwks_mock = server.mock(|when, then| {
+            when.method(GET)
+                .path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(r#"
+                    {
+                        "keys":[
+                            {
+                                "kty":"RSA",
+                                "n":"0TF4RX87dOllFp12D8IZvSoJyp8D4IZ3JmlVG7Au2GOSp1WcrAqjyq3Gk-a_1tT31FHCLVqjH9vXE8g1sXika4mp8YCWyMfjT3KsfrciI_Fw-nBCawnqewBDcBo4cvBgTjHNBjcjGNr0U_4eCZPjP8pwqw6HrRgHf-ypNmtgWG6_2EaK-tOJtnNgGRtCYGZdqMDfKLDuqzU5-gT2ejt9P1kNAvFMMUm4dTOK-vJ7jwGKWZEzupHBlHMqu4K4IRoFbVr2XsAzV5YQ0u_r26NVtQTDUdTp9ixhexUp0eXye6m3uMklqUOHJbiqNjmH2ye4yXVJI0w6BFOeXXlwyR6slw",
+                                "e":"AQAB",
+                                "alg":"RS256",
+                                "kid":"test/keys/rs256/public",
+                                "use":"sig"
+                            }
+                        ]
+                    }
+                "#);
+        });
+        let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
+        let file = NamedTempFile::new().unwrap();
+        let path = file.into_temp_path().to_path_buf();
+        let dynamic_json = json!({
+            "something": "else",
+            "array": [1, 2, 3]
+        });
+        std::fs::write(&path, dynamic_json.to_string()).unwrap();
+        let min_refresh_rate = Duration::try_seconds(60).unwrap();
+        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate, Some(path));
+        let key_result = keys_cache.get("test/keys/rs256/public").await;
+        assert!(key_result.is_ok());
         jwks_mock.assert();
     }
 }

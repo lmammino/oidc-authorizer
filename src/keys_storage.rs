@@ -20,7 +20,7 @@ pub enum KeysStorageError {
 pub struct KeysStorage {
     jwks_uri: Url,
     client: Client,
-    storage: Arc<RwLock<(KeysMap, DateTime<Utc>)>>,
+    l1_cache: Arc<RwLock<(KeysMap, DateTime<Utc>)>>,
     min_refresh_rate: Duration,
     jwks_pre_cached_file_path: Option<PathBuf>,
 }
@@ -38,13 +38,13 @@ impl KeysStorage {
                 .user_agent(format!("oidc-authorizer/{}", env!("CARGO_PKG_VERSION")))
                 .build()
                 .unwrap(),
-            storage: Arc::new(RwLock::new((KeysMap::default(), Default::default()))),
+            l1_cache: Arc::new(RwLock::new((KeysMap::default(), Default::default()))),
             jwks_pre_cached_file_path,
         }
     }
 
     pub async fn get(&self, key_id: &str) -> Result<DecodingKey, KeysStorageError> {
-        let read_guard = self.storage.read().await;
+        let read_guard = self.l1_cache.read().await;
         let maybe_key = read_guard.0.get(key_id);
         if let Some(key) = maybe_key {
             tracing::debug!("Key found in memory storage: {}", key_id);
@@ -55,20 +55,22 @@ impl KeysStorage {
         let should_refresh = read_guard.1 + self.min_refresh_rate < Utc::now();
         drop(read_guard); // so that we can write to storage.
 
-        let res = self.load_cached_file().await;
+        let res = self.load_from_l2_cache().await;
         if res.is_ok() {
-            let read_guard = self.storage.read().await;
+            let read_guard = self.l1_cache.read().await;
             let maybe_key = read_guard.0.get(key_id);
             if let Some(key) = maybe_key {
                 tracing::debug!("Key found in cached JWKS file: {}", key_id);
                 return Ok(key.clone());
             }
+        } else {
+            tracing::error!("Failed to load cached JWKS file: {}", res.err().unwrap());
         }
 
         if should_refresh {
             tracing::debug!("Refreshing JWKS from origin.");
             self.refresh().await?;
-            let read_guard = self.storage.read().await;
+            let read_guard = self.l1_cache.read().await;
             let maybe_key = read_guard.0.get(key_id);
             if let Some(key) = maybe_key {
                 return Ok(key.clone());
@@ -83,7 +85,7 @@ impl KeysStorage {
         Err(KeysStorageError::KeyNotFound(key_id.to_string()))
     }
 
-    async fn load_cached_file(&self) -> Result<(), Error> {
+    async fn load_from_l2_cache(&self) -> Result<(), Error> {
         if self.jwks_pre_cached_file_path.is_none() {
             tracing::debug!("Invalid JWKS pre-cache file path. Skipping cache load from disk.");
             return Ok(());
@@ -92,7 +94,7 @@ impl KeysStorage {
         tracing::debug!("Loading cached JWKS from '{}'", path.as_path().display());
         let file = File::open(path.as_path())?;
         let jwks: JwkSet = serde_json::from_reader(file)?;
-        let mut write_guard = self.storage.write().await;
+        let mut write_guard = self.l1_cache.write().await;
         write_guard.0 = jwks.into();
         write_guard.1 = write_guard.1.min(Utc::now());
         Ok(())
@@ -106,7 +108,7 @@ impl KeysStorage {
         tracing::debug!("JWKS fetched got body: {}", jwks);
         let jwks: JwkSet = serde_json::from_str(&jwks)?;
 
-        let mut write_guard = self.storage.write().await;
+        let mut write_guard = self.l1_cache.write().await;
         write_guard.0 = jwks.into();
         write_guard.1 = Utc::now();
         Ok(())
@@ -129,7 +131,7 @@ mod tests {
 
         assert_eq!(keys_cache.jwks_uri, jwks_uri);
         assert_eq!(keys_cache.min_refresh_rate, min_refresh_rate);
-        assert_eq!(keys_cache.storage.read().await.0.len(), 0);
+        assert_eq!(keys_cache.l1_cache.read().await.0.len(), 0);
     }
 
     #[tokio::test]

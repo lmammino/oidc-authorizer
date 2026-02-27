@@ -71,6 +71,7 @@ impl Handler {
             return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
         }
 
+        let start_time = Instant::now();
         let key = match &token_header.kid {
             Some(key_id) => match self.keys.get(key_id).await {
                 Ok(key) => key,
@@ -87,6 +88,7 @@ impl Handler {
                 return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
             }
         };
+        tracing::info!("Key retrieval overall took: {:?}", start_time.elapsed());
 
         let start_time = Instant::now();
         let mut validation = Validation::new(token_header.alg);

@@ -11,6 +11,7 @@ use futures_util::future::{BoxFuture, FutureExt};
 use jsonwebtoken::{decode, decode_header, Validation};
 use lambda_runtime::{Error, LambdaEvent, Service};
 use std::task::{Context, Poll};
+use std::time::Instant;
 
 pub struct Handler {
     pub keys: &'static KeysStorage,
@@ -87,6 +88,7 @@ impl Handler {
             }
         };
 
+        let start_time = Instant::now();
         let mut validation = Validation::new(token_header.alg);
         validation.set_audience(&self.accepted_audiences.accepted_values());
         validation.set_issuer(&self.accepted_issuers.accepted_values());
@@ -97,7 +99,9 @@ impl Handler {
                 return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
             }
         };
+        tracing::info!("Token validation took: {:?}", start_time.elapsed());
 
+        let start_time = Instant::now();
         // CEL validation (if configured)
         if let Err(e) = self
             .cel_validator
@@ -110,10 +114,13 @@ impl Handler {
             );
             return Ok(TokenAuthorizerResponse::deny(&event.method_arn));
         }
+        tracing::info!("CEL validation took: {:?}", start_time.elapsed());
 
+        let start_time = Instant::now();
         let principal_id = self
             .principal_id_claims
             .get_principal_id_from_claims(&token_payload.claims);
+        tracing::info!("Principal ID extraction took: {:?}", start_time.elapsed());
 
         Ok(TokenAuthorizerResponse::allow(
             &principal_id,

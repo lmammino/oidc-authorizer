@@ -2,7 +2,7 @@ use crate::keysmap::KeysMap;
 use chrono::{DateTime, Duration, Utc};
 use jsonwebtoken::{jwk::JwkSet, DecodingKey};
 use reqwest::{Client, Url};
-use std::{fs::File, io::Error, path::PathBuf, sync::Arc};
+use std::{fs::File, io::Error, path::PathBuf, sync::Arc, time::Instant};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -44,10 +44,15 @@ impl KeysStorage {
     }
 
     pub async fn get(&self, key_id: &str) -> Result<DecodingKey, KeysStorageError> {
+        let start_time = Instant::now();
         let read_guard = self.l1_cache.read().await;
         let maybe_key = read_guard.0.get(key_id);
         if let Some(key) = maybe_key {
-            tracing::debug!("Key found in memory storage: {}", key_id);
+            tracing::info!(
+                "Key found in memory storage: {} took: {:?}",
+                key_id,
+                start_time.elapsed()
+            );
             return Ok(key.clone());
         }
 
@@ -55,12 +60,20 @@ impl KeysStorage {
         let should_refresh = read_guard.1 + self.min_refresh_rate < Utc::now();
         drop(read_guard); // so that we can write to storage.
 
+        let start_time = Instant::now();
         let res = self.load_from_l2_cache().await;
+        tracing::info!("load_from_l2_cache took: {:?}", start_time.elapsed());
+
+        let start_time = Instant::now();
         if res.is_ok() {
             let read_guard = self.l1_cache.read().await;
             let maybe_key = read_guard.0.get(key_id);
             if let Some(key) = maybe_key {
-                tracing::debug!("Key found in cached JWKS file: {}", key_id);
+                tracing::info!(
+                    "Key found in cached JWKS file: {} took: {:?}",
+                    key_id,
+                    start_time.elapsed()
+                );
                 return Ok(key.clone());
             }
         } else {
@@ -68,11 +81,12 @@ impl KeysStorage {
         }
 
         if should_refresh {
-            tracing::debug!("Refreshing JWKS from origin.");
+            let start_time = Instant::now();
             self.refresh().await?;
             let read_guard = self.l1_cache.read().await;
             let maybe_key = read_guard.0.get(key_id);
             if let Some(key) = maybe_key {
+                tracing::info!("origin fetch took: {:?}", start_time.elapsed());
                 return Ok(key.clone());
             }
             drop(read_guard);
@@ -121,8 +135,10 @@ mod tests {
     use httpmock::prelude::*;
     use serde_json::json;
     use tempfile::NamedTempFile;
+    use tracing_test::traced_test;
 
     #[tokio::test]
+    #[traced_test]
     async fn it_should_initialize_an_empty_instance() {
         let jwks_uri = Url::parse("https://example.com/jwks.json").unwrap();
         // SAFETY: safe to unwrap since (60 seconds) <= (i64::MAX / 1000)
@@ -135,6 +151,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[traced_test]
     async fn it_should_referesh_the_cache_when_retrieving_the_first_key() {
         let server = MockServer::start();
         let jwks_mock = server.mock(|when, then| {
@@ -174,6 +191,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[traced_test]
     async fn it_should_return_an_error_if_the_key_is_not_found() {
         let server = MockServer::start();
         let jwks_mock = server.mock(|when, then| {
@@ -212,6 +230,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[traced_test]
     async fn it_should_not_error_if_the_cache_file_path_is_invalid() {
         let server = MockServer::start();
         let jwks_mock = server.mock(|when, then| {
@@ -247,6 +266,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[traced_test]
     async fn it_should_not_return_an_error_if_the_cached_file_contains_invalid_json() {
         let server = MockServer::start();
         let jwks_mock = server.mock(|when, then| {
@@ -282,6 +302,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[traced_test]
     async fn it_should_handle_invalid_jwks_cached_file_by_falling_back_to_refetching_jwks() {
         let server = MockServer::start();
         let jwks_mock = server.mock(|when, then| {
@@ -320,8 +341,9 @@ mod tests {
     }
 
     #[tokio::test]
+    #[traced_test]
     async fn it_should_return_key_from_valid_jwks_cache_file() {
-        println!("it_should_return_key_from_valid_jwks_cache_file");
+        tracing::debug!("it_should_return_key_from_valid_jwks_cache_file");
         let server = MockServer::start();
         let jwks_mock = server.mock(|when, then| {
             when.method(GET)
@@ -343,11 +365,11 @@ mod tests {
                     }
                 "#);
         });
-        println!("server setup complete");
+        tracing::debug!("server setup complete");
         let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
         let file = NamedTempFile::new().unwrap();
         let path = file.path().to_path_buf();
-        println!("path: {}", path.display());
+        tracing::debug!("path: {}", path.display());
         let dynamic_json = json!({
             "keys":[
                 {
@@ -361,13 +383,18 @@ mod tests {
             ]
         });
         std::fs::write(path.clone(), dynamic_json.to_string()).unwrap();
-        println!("file written to path: {}", path.display());
+        tracing::debug!("file written to path: {}", path.display());
 
         let min_refresh_rate = Duration::try_seconds(60).unwrap();
+
+        let start_time = Instant::now();
         let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate, Some(path));
-        println!("keys_cache created");
+        tracing::debug!("keys_cache init took: {:?}", start_time.elapsed());
+
+        let start_time = Instant::now();
         let key_result = keys_cache.get("test/keys/rs256/public").await;
-        println!("key_result");
+        tracing::debug!("keys_cache get took: {:?}", start_time.elapsed());
+
         assert!(key_result.is_ok());
         jwks_mock.assert_calls(0);
     }

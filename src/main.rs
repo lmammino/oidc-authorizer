@@ -7,6 +7,7 @@ use lambda_runtime::{run, tracing, Error};
 use principalid_claims::PrincipalIDClaims;
 use reqwest::Url;
 use std::{env, path::PathBuf};
+
 mod accepted_algorithms;
 mod accepted_claims;
 mod cel_validation;
@@ -54,7 +55,12 @@ async fn main() -> Result<(), Error> {
     let token_validation_cel = env::var("TOKEN_VALIDATION_CEL").unwrap_or_default();
     let cel_validator: CelValidator = token_validation_cel.parse()?;
 
-    tracing::init_default_subscriber();
+    let (writer, log_guard) = tracing_appender::non_blocking(std::io::stdout());
+    tracing::init_default_subscriber_with_writer(writer);
+    let shutdown_hook = || async move {
+        std::mem::drop(log_guard);
+    };
+    lambda_runtime::spawn_graceful_shutdown_handler(shutdown_hook).await;
 
     let keys = KeysStorage::new(jwks_uri, min_refresh_rate, jwks_pre_cached_file_path);
     run(handler::Handler::new(

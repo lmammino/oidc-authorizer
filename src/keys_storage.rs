@@ -48,11 +48,7 @@ impl KeysStorage {
         let read_guard = self.l1_cache.read().await;
         let maybe_key = read_guard.0.get(key_id);
         if let Some(key) = maybe_key {
-            tracing::info!(
-                "Key found in memory storage: {} took: {:?}",
-                key_id,
-                start_time.elapsed()
-            );
+            tracing::info!("Key found in l1_cache, took: {:?}", start_time.elapsed());
             return Ok(key.clone());
         }
 
@@ -61,19 +57,12 @@ impl KeysStorage {
         drop(read_guard); // so that we can write to storage.
 
         let start_time = Instant::now();
-        let res = self.load_from_l2_cache().await;
-        tracing::info!("load_from_l2_cache took: {:?}", start_time.elapsed());
-
-        let start_time = Instant::now();
+        let res = self.maybe_load_from_l2_cache().await;
         if res.is_ok() {
             let read_guard = self.l1_cache.read().await;
             let maybe_key = read_guard.0.get(key_id);
             if let Some(key) = maybe_key {
-                tracing::info!(
-                    "Key found in cached JWKS file: {} took: {:?}",
-                    key_id,
-                    start_time.elapsed()
-                );
+                tracing::info!("Key found in l2_cache, took: {:?}", start_time.elapsed());
                 return Ok(key.clone());
             }
         } else {
@@ -86,20 +75,16 @@ impl KeysStorage {
             let read_guard = self.l1_cache.read().await;
             let maybe_key = read_guard.0.get(key_id);
             if let Some(key) = maybe_key {
-                tracing::info!("origin fetch took: {:?}", start_time.elapsed());
+                tracing::info!("Key found in origin JWKS, took: {:?}", start_time.elapsed());
                 return Ok(key.clone());
             }
             drop(read_guard);
         }
 
-        tracing::error!(
-            "Key not found in memory storage or cached JWKS file: {}",
-            key_id
-        );
         Err(KeysStorageError::KeyNotFound(key_id.to_string()))
     }
 
-    async fn load_from_l2_cache(&self) -> Result<(), Error> {
+    async fn maybe_load_from_l2_cache(&self) -> Result<(), Error> {
         if self.jwks_pre_cached_file_path.is_none() {
             tracing::debug!("Invalid JWKS pre-cache file path. Skipping cache load from disk.");
             return Ok(());

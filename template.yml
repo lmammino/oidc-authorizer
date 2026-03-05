@@ -22,10 +22,19 @@ Parameters:
     Type: String
     Description: The minumum number of seconds to wait before keys are refreshed when the given key is not found.
     Default: "900" # 15 minutes
+  JwksPreCachedFilePath:
+    Type: String
+    Description: |
+      Optional path to a pre-cached JWKS file on disk. If specified, the authorizer will attempt to load keys from this file
+      before fetching from the JWKS URI endpoint. This can improve cold start performance by avoiding the initial network call.
+      The file should contain a valid JWKS JSON structure matching your OIDC provider's JWKS format. If the file is invalid or
+      missing, the authorizer will gracefully fall back to fetching from the JWKS URI endpoint. The file path should be
+      accessible from the Lambda execution environment (e.g., /opt/ for Lambda layers, or relative to the Lambda package root).
+    Default: ""
   PrincipalIdClaims:
     Type: String
     Description: |
-      A comma-separated list of claims defining the token fields that should be used to determine the principal Id 
+      A comma-separated list of claims defining the token fields that should be used to determine the principal Id
       from the token. The fields will be tested in order. If there's no match the value specified in the `DefaultPrincipalId`
       parameter will be used.
     Default: "preferred_username, sub"
@@ -158,6 +167,7 @@ Conditions:
   ConfigureLogging: !Or
     - !Condition UseCustomLogGroup
     - !Condition CreateManagedLogGroup
+  HasJwksPreCachedFilePath: !Not [!Equals [!Ref JwksPreCachedFilePath, ""]]
 
 Resources:
   OidcAuthorizerLogGroup:
@@ -191,6 +201,10 @@ Resources:
           AWS_LAMBDA_LOG_LEVEL: !Ref AwsLambdaLogLevel
           JWKS_URI: !Ref JwksUri
           MIN_REFRESH_RATE: !Ref MinRefreshRate
+          JWKS_PRE_CACHED_FILE_PATH: !If
+            - HasJwksPreCachedFilePath
+            - !Ref JwksPreCachedFilePath
+            - !Ref "AWS::NoValue"
           PRINCIPAL_ID_CLAIMS: !Ref PrincipalIdClaims
           DEFAULT_PRINCIPAL_ID: !Ref DefaultPrincipalId
           ACCEPTED_ISSUERS: !Ref AcceptedIssuers

@@ -66,6 +66,13 @@ Here's a list of the configuration options that are supported:
 - **Mandatory**: No
 - **Default value**: `"900"` (15 minutes)
 
+### JwksPreCachedFilePath
+
+- **Environment variable**: `JWKS_PRE_CACHED_FILE_PATH`
+- **Description**: Optional path to a pre-cached JWKS file on disk. If specified, the authorizer will attempt to load keys from this file before fetching from the JWKS URI endpoint. This can improve cold start performance by avoiding the initial network call. The file should contain a valid JWKS JSON structure matching your OIDC provider's JWKS format. If the file is invalid or missing, the authorizer will gracefully fall back to fetching from the JWKS URI endpoint. The file path should be accessible from the Lambda execution environment (e.g., `/opt/jwks.json` for Lambda layers, or relative to the Lambda package root).
+- **Mandatory**: No
+- **Default value**: Not set (disabled)
+
 ### PrincipalIdClaims
 
 - **Environment variable**: `PRINCIPAL_ID_CLAIMS`

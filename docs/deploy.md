@@ -37,6 +37,7 @@ Resources:
         DefaultPrincipalId: "unknown"
         JwksUri: "THE ENDPOINT OF YOUR OIDC PROVIDER JWKS"
         MinRefreshRate: "900"
+        JwksPreCachedFilePath: ""
         PrincipalIdClaims: "preferred_username, sub"
         TokenValidationCel: ""
         # The amount of memory (in MB) to give to the authorizer Lambda.
@@ -86,6 +87,7 @@ const authorizerApp = new cdk.aws_sam.CfnApplication(this, "AuthorizerApp", {
     JwksUri:
       "https://login.microsoftonline.com/3e4abf5a-fdc9-485c-9853-af03c4a32976/discovery/v2.0/keys",
     MinRefreshRate: "900",
+    JwksPreCachedFilePath: "",
     PrincipalIdClaims: "preferred_username, sub",
     TokenValidationCel: "",
     // The amount of memory (in MB) to give to the authorizer Lambda.

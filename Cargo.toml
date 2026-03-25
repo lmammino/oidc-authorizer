@@ -18,7 +18,7 @@ license = "MIT"
 [dependencies]
 chrono = "0.4.31"
 futures-util = "0.3.28"
-jsonwebtoken = "9.3.1"
+jsonwebtoken = "10.3.0"
 lambda_runtime = "0.14.2"
 reqwest = { version = "0.12.3", default-features = false, features = [
   "json",

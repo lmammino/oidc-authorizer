@@ -164,6 +164,7 @@ mod tests {
         let key_storage = Box::leak(Box::new(KeysStorage::new(
             Url::parse("http://localhost").unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
         let principal_id_claims =
             Box::leak(Box::new(PrincipalIDClaims::from_comma_separated_values(
@@ -231,7 +232,7 @@ mod tests {
             AcceptedClaims::from_comma_separated_values(aud, "aud".to_string());
         let accepted_signing_algorithms: AcceptedAlgorithms = Default::default();
         let cel_validator: CelValidator = Default::default();
-        let keys = KeysStorage::new(Url::parse(&jwks_uri).unwrap(), min_refresh_rate);
+        let keys = KeysStorage::new(Url::parse(&jwks_uri).unwrap(), min_refresh_rate, None);
         let mut handler = Handler::new(
             Box::leak(Box::new(keys)),
             Box::leak(Box::new(principal_id_claims)),
@@ -512,6 +513,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
 
         let response = handler.do_call(event).await;
@@ -560,6 +562,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
 
         let response = handler.do_call(event).await;
@@ -607,6 +610,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
 
         let response = handler.do_call(event).await;
@@ -654,6 +658,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
 
         let response = handler.do_call(event).await;
@@ -702,6 +707,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
         // CEL expression that requires email_verified to be true
         let cel_validator: CelValidator = "claims.email_verified == true".parse().unwrap();
@@ -753,6 +759,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
         // CEL expression that requires email_verified to be true
         let cel_validator: CelValidator = "claims.email_verified == true".parse().unwrap();
@@ -804,6 +811,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
         // CEL expression that requires admin role
         let cel_validator: CelValidator =
@@ -855,6 +863,7 @@ mod tests {
         handler.keys = Box::leak(Box::new(KeysStorage::new(
             Url::parse(&server.url("/")).unwrap(),
             Duration::try_seconds(600).unwrap(),
+            None,
         )));
         // CEL expression that requires admin role
         let cel_validator: CelValidator =
@@ -868,5 +877,138 @@ mod tests {
         let statement = response.policy_document.statement.first().unwrap();
         assert_eq!(statement.effect, "Allow");
         assert_eq!(response.principal_id, "some_user");
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_validates_tokens_across_pre_warmed_cache_and_network_refresh() {
+        use tempfile::NamedTempFile;
+
+        let rs256_jwk = include_str!("../tests/fixtures/keys/rs256/jwk.json");
+        let rs384_jwk = include_str!("../tests/fixtures/keys/rs384/jwk.json");
+        let rs512_jwk = include_str!("../tests/fixtures/keys/rs512/jwk.json");
+
+        // Mock JWKS endpoint returns all 3 keys
+        let server = MockServer::start();
+        let jwks_mock = server.mock(|when, then| {
+            when.method(GET).path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!(
+                    r#"{{"keys":[{}, {}, {}]}}"#,
+                    rs256_jwk, rs384_jwk, rs512_jwk
+                ));
+        });
+
+        // Pre-cached file contains ONLY rs256
+        let file = NamedTempFile::new().unwrap();
+        let path = file.path().to_path_buf();
+        std::fs::write(&path, format!(r#"{{"keys":[{}]}}"#, rs256_jwk)).unwrap();
+
+        let server_url = server.url("/");
+        let iss = server_url.clone();
+        let aud = "test-app";
+        let min_refresh_rate = Duration::try_seconds(600).unwrap();
+
+        let keys = KeysStorage::new(
+            Url::parse(&server_url).unwrap(),
+            min_refresh_rate,
+            Some(path),
+        );
+        let principal_id_claims = PrincipalIDClaims::from_comma_separated_values(
+            "preferred_username, sub",
+            "unknown".to_string(),
+        );
+        let accepted_issuers = AcceptedClaims::from_comma_separated_values(&iss, "iss".to_string());
+        let accepted_audiences =
+            AcceptedClaims::from_comma_separated_values(aud, "aud".to_string());
+        let accepted_signing_algorithms: AcceptedAlgorithms = Default::default();
+        let cel_validator: CelValidator = Default::default();
+        let mut handler = Handler::new(
+            Box::leak(Box::new(keys)),
+            Box::leak(Box::new(principal_id_claims)),
+            Box::leak(Box::new(accepted_issuers)),
+            Box::leak(Box::new(accepted_audiences)),
+            Box::leak(Box::new(accepted_signing_algorithms)),
+            Box::leak(Box::new(cel_validator)),
+        );
+
+        let exp = (Utc::now() + Duration::try_hours(1).unwrap()).timestamp();
+        let claims = json!({ "iss": iss, "aud": aud, "exp": exp, "sub": "user1", "preferred_username": "user1" });
+
+        // Token 1: signed with rs256 — key is in pre-warmed cache, no network call
+        let token1 = jsonwebtoken::encode(
+            &serde_json::from_value(json!({ "alg": "RS256", "kid": "test/keys/rs256/public" }))
+                .unwrap(),
+            &claims,
+            &EncodingKey::from_rsa_pem(
+                include_str!("../tests/fixtures/keys/rs256/private.pem").as_bytes(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        let event = TokenAuthorizerEvent {
+            authorization_token: format!("Bearer {}", token1),
+            method_arn: "arn:aws:execute-api:us-east-1:123456789012:api/*/GET/".to_string(),
+        };
+        let response = handler
+            .call(LambdaEvent::new(event, Default::default()))
+            .await;
+        assert_eq!(
+            response.unwrap().policy_document.statement[0].effect,
+            "Allow"
+        );
+        jwks_mock.assert_calls(0);
+
+        // Token 2: signed with rs384 — cache miss, triggers network refresh
+        let token2 = jsonwebtoken::encode(
+            &serde_json::from_value(json!({ "alg": "RS384", "kid": "test/keys/rs384/public" }))
+                .unwrap(),
+            &claims,
+            &EncodingKey::from_rsa_pem(
+                include_str!("../tests/fixtures/keys/rs384/private.pem").as_bytes(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        let event = TokenAuthorizerEvent {
+            authorization_token: format!("Bearer {}", token2),
+            method_arn: "arn:aws:execute-api:us-east-1:123456789012:api/*/GET/".to_string(),
+        };
+        let response = handler
+            .call(LambdaEvent::new(event, Default::default()))
+            .await;
+        assert_eq!(
+            response.unwrap().policy_document.statement[0].effect,
+            "Allow"
+        );
+        jwks_mock.assert_calls(1);
+
+        // Token 3: signed with rs512 — key already in cache from refresh, no new network call
+        let token3 = jsonwebtoken::encode(
+            &serde_json::from_value(json!({ "alg": "RS512", "kid": "test/keys/rs512/public" }))
+                .unwrap(),
+            &claims,
+            &EncodingKey::from_rsa_pem(
+                include_str!("../tests/fixtures/keys/rs512/private.pem").as_bytes(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        let event = TokenAuthorizerEvent {
+            authorization_token: format!("Bearer {}", token3),
+            method_arn: "arn:aws:execute-api:us-east-1:123456789012:api/*/GET/".to_string(),
+        };
+        let response = handler
+            .call(LambdaEvent::new(event, Default::default()))
+            .await;
+        assert_eq!(
+            response.unwrap().policy_document.statement[0].effect,
+            "Allow"
+        );
+        jwks_mock.assert_calls(1); // still 1 — served from refreshed cache
     }
 }

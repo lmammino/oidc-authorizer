@@ -22,10 +22,26 @@ Parameters:
     Type: String
     Description: The minumum number of seconds to wait before keys are refreshed when the given key is not found.
     Default: "900" # 15 minutes
+  JwksPreCachedFilePath:
+    Type: String
+    Description: |
+      Optional path to a pre-cached JWKS file on disk. When set, the authorizer pre-warms its in-memory key cache from this
+      file at startup, avoiding the initial network call to the JWKS endpoint. The file should contain a valid JWKS JSON
+      structure matching your OIDC provider's JWKS format. If the file is missing or invalid, the authorizer logs a warning
+      and starts with an empty cache (falling back to fetching from the JWKS URI on the first request). The file path should
+      be accessible from the Lambda execution environment (e.g., /opt/jwks.json for Lambda layers).
+    Default: ""
+  LambdaLayers:
+    Type: String
+    Description: |
+      Optional comma-separated list of Lambda layer ARNs to attach to the authorizer function.
+      Use this to add a pre-cached JWKS layer (for faster cold starts, together with JwksPreCachedFilePath),
+      monitoring extensions, or any other layers you need.
+    Default: ""
   PrincipalIdClaims:
     Type: String
     Description: |
-      A comma-separated list of claims defining the token fields that should be used to determine the principal Id 
+      A comma-separated list of claims defining the token fields that should be used to determine the principal Id
       from the token. The fields will be tested in order. If there's no match the value specified in the `DefaultPrincipalId`
       parameter will be used.
     Default: "preferred_username, sub"
@@ -158,6 +174,8 @@ Conditions:
   ConfigureLogging: !Or
     - !Condition UseCustomLogGroup
     - !Condition CreateManagedLogGroup
+  HasJwksPreCachedFilePath: !Not [!Equals [!Ref JwksPreCachedFilePath, ""]]
+  HasLambdaLayers: !Not [!Equals [!Ref LambdaLayers, ""]]
 
 Resources:
   OidcAuthorizerLogGroup:
@@ -179,6 +197,10 @@ Resources:
       MemorySize: !Ref LambdaMemorySize
       Architectures:
         - arm64
+      Layers: !If
+        - HasLambdaLayers
+        - !Split [",", !Ref LambdaLayers]
+        - !Ref "AWS::NoValue"
       LoggingConfig: !If
         - ConfigureLogging
         - LogGroup: !If
@@ -191,6 +213,10 @@ Resources:
           AWS_LAMBDA_LOG_LEVEL: !Ref AwsLambdaLogLevel
           JWKS_URI: !Ref JwksUri
           MIN_REFRESH_RATE: !Ref MinRefreshRate
+          JWKS_PRE_CACHED_FILE_PATH: !If
+            - HasJwksPreCachedFilePath
+            - !Ref JwksPreCachedFilePath
+            - !Ref "AWS::NoValue"
           PRINCIPAL_ID_CLAIMS: !Ref PrincipalIdClaims
           DEFAULT_PRINCIPAL_ID: !Ref DefaultPrincipalId
           ACCEPTED_ISSUERS: !Ref AcceptedIssuers

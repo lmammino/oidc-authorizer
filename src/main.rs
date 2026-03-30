@@ -6,7 +6,8 @@ use keys_storage::KeysStorage;
 use lambda_runtime::{run, tracing, Error};
 use principalid_claims::PrincipalIDClaims;
 use reqwest::Url;
-use std::env;
+use std::{env, path::PathBuf};
+
 mod accepted_algorithms;
 mod accepted_claims;
 mod cel_validation;
@@ -16,6 +17,12 @@ mod keysmap;
 mod models;
 mod parse_token_from_header;
 mod principalid_claims;
+
+fn maybe_get_jwks_cache_path() -> Option<PathBuf> {
+    env::var("JWKS_PRE_CACHED_FILE_PATH")
+        .ok()
+        .map(PathBuf::from)
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -28,6 +35,8 @@ async fn main() -> Result<(), Error> {
             min_refresh_rate,
             i64::MAX / 1000
         ))?;
+
+    let jwks_pre_cached_file_path = maybe_get_jwks_cache_path();
     let principal_id_claims =
         env::var("PRINCIPAL_ID_CLAIMS").unwrap_or("preferred_username, sub".to_string());
     let default_principal_id = env::var("DEFAULT_PRINCIPAL_ID").unwrap_or("unknown".to_string());
@@ -48,7 +57,7 @@ async fn main() -> Result<(), Error> {
 
     tracing::init_default_subscriber();
 
-    let keys = KeysStorage::new(jwks_uri, min_refresh_rate);
+    let keys = KeysStorage::new(jwks_uri, min_refresh_rate, jwks_pre_cached_file_path);
     run(handler::Handler::new(
         Box::leak(Box::new(keys)),
         Box::leak(Box::new(principal_id_claims)),

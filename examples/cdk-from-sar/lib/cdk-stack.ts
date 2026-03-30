@@ -7,6 +7,19 @@ export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // Optional: Pre-cached JWKS layer for faster cold starts.
+    // To use this, download your JWKS file first:
+    //   mkdir -p jwks-layer && curl -o jwks-layer/jwks.json "YOUR_JWKS_URI"
+    // Then uncomment the layer and the LambdaLayers/JwksPreCachedFilePath parameters below.
+    //
+    // const jwksPreCacheLayer = new aws_lambda.LayerVersion(this, 'JwksPreCacheLayer', {
+    //   layerVersionName: 'jwks-pre-cache',
+    //   description: 'Pre-cached JWKS keys for faster cold starts',
+    //   code: aws_lambda.Code.fromAsset('./jwks-layer'),
+    //   compatibleRuntimes: [aws_lambda.Runtime.PROVIDED_AL2023],
+    //   removalPolicy: cdk.RemovalPolicy.DESTROY,
+    // });
+
     // import the authorizer lambda for the Serverless Application Repository
     const authorizerApp = new cdk.aws_sam.CfnApplication(this, 'AuthorizerApp', {
       location: {
@@ -24,6 +37,9 @@ export class CdkStack extends cdk.Stack {
         PrincipalIdClaims: "preferred_username, sub",
         // A CEL expression for custom token validation (optional)
         TokenValidationCel: "",
+        // Uncomment to enable pre-warmed JWKS cache (requires jwksPreCacheLayer above)
+        // LambdaLayers: jwksPreCacheLayer.layerVersionArn,
+        // JwksPreCachedFilePath: "/opt/jwks.json",
         // The amount of memory (in MB) to give to the authorizer Lambda.
         LambdaMemorySize: "128",
         // The timeout to give to the authorizer Lambda.

@@ -1,6 +1,6 @@
 [package]
 name = "oidc-authorizer"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT"
 
@@ -18,9 +18,9 @@ license = "MIT"
 [dependencies]
 chrono = "0.4.31"
 futures-util = "0.3.28"
-jsonwebtoken = "9.3.1"
-lambda_runtime = "0.14.2"
-reqwest = { version = "0.12.3", default-features = false, features = [
+jsonwebtoken = { version= "10.3.0", features = ["rust_crypto"] }
+lambda_runtime = "1.0.2"
+reqwest = { version = "0.12.28", default-features = false, features = [
   "json",
   "rustls-tls",
   "http2",
@@ -37,4 +37,5 @@ cel-interpreter = { version = "0.10", features = ["json", "regex", "chrono"] }
 
 [dev-dependencies]
 httpmock = "0.8.2"
+tempfile = "3.26.0"
 tracing-test = "0.2.4"

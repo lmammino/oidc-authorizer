@@ -66,6 +66,26 @@ Here's a list of the configuration options that are supported:
 - **Mandatory**: No
 - **Default value**: `"900"` (15 minutes)
 
+### JwksPreCachedFilePath
+
+- **Environment variable**: `JWKS_PRE_CACHED_FILE_PATH`
+- **Description**: Optional path to a pre-cached JWKS file on disk. When set, the authorizer pre-warms its in-memory key cache from this file at startup, avoiding the initial network call to the JWKS endpoint. This can significantly improve cold start performance. The file should contain a valid JWKS JSON structure matching your OIDC provider's JWKS format. If the file is missing or invalid, the authorizer logs a warning and starts with an empty cache (gracefully falling back to fetching from the JWKS URI on the first request). The file path should be accessible from the Lambda execution environment (e.g., `/opt/jwks.json` for Lambda layers).
+- **Mandatory**: No
+- **Default value**: Not set (disabled)
+- **Used together with**: `LambdaLayers` (when deploying via CloudFormation/SAR)
+
+> [!TIP]
+> When the pre-warmed cache is active and a key is not found in it (e.g., because the OIDC provider has rotated keys), the authorizer fetches fresh keys from the JWKS endpoint and emits a structured log line with `event_type=jwks_refresh_needed`. You can use a [CloudWatch Logs subscription filter](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/SubscriptionFilters.html) to match this event and trigger an automated update of the pre-cached JWKS Lambda layer.
+
+For a complete guide on creating and managing the JWKS layer (SAM, CDK, and AWS CLI approaches, plus automated rotation), see [examples/jwks-lambda-layer/README.md](./examples/jwks-lambda-layer/README.md).
+
+### LambdaLayers
+
+- **CloudFormation parameter** (not an environment variable)
+- **Description**: A comma-separated list of Lambda layer ARNs to attach to the authorizer function. Use this to add a pre-cached JWKS layer (for faster cold starts, together with `JwksPreCachedFilePath`), monitoring extensions, or any other layers you need. This parameter is only relevant when deploying via CloudFormation or SAR.
+- **Mandatory**: No
+- **Default value**: `""` (no layers attached)
+
 ### PrincipalIdClaims
 
 - **Environment variable**: `PRINCIPAL_ID_CLAIMS`
@@ -197,7 +217,7 @@ The following section describes the steps that are followed to validate a token:
 
   1. The token is parsed from the `Authorization` header of the request. It is expected to be in the form `Bearer <token>`, where `<token>` needs to be a valid JWT token.
   2. The token is decoded and the header is parsed to extract the `kid` (key id) and the `alg` (algorithm) claims. If the `kid` is not found, the token is rejected. If the `alg` is not supported, the token is rejected.
-  3. The `kid` is used to look up the public key in the JWKS (JSON Web Key Set) provided by the OIDC provider. If the key is not found, the key is refreshed and the lookup is retried. If the key is still not found, the token is rejected. The JWKS cache is optimistic, it does not automatically refresh keys unless a lookup fails. It also does not auto-refresh keys too often (to avoid unnecessary calls to the JWKS endpoint). You can configure the minimum refresh rate (in seconds) using the `MIN_REFRESH_RATE` environment variable.
+  3. The `kid` is used to look up the public key in the in-memory JWKS (JSON Web Key Set) cache. If `JWKS_PRE_CACHED_FILE_PATH` is configured, the cache is pre-warmed from the file at startup so keys are immediately available without a network call. If the key is not found in the cache, the JWKS is refreshed from the OIDC provider and the lookup is retried. If the key is still not found, the token is rejected. The JWKS cache is optimistic: it does not automatically refresh keys unless a lookup fails, and it rate-limits refresh attempts (configurable via `MIN_REFRESH_RATE`).
   4. The token is decoded and validated using the public key. If the validation fails, the token is rejected. This validation also checks the `exp` (expiration time) claim and the `nbf` (not before) claim. If the token is expired or not yet valid, the token is rejected.
   5. The `iss` (issuer) claim is checked against the list of accepted issuers. If the issuer is not found in the list, the token is rejected. If the accept list is empty, any issuer is accepted. If the token contains multiple issuers (array of strings), this check will make sure that at least one of the issuers in the token matches the provided list of accepted issuers.
   6. The `aud` (audience) claim is checked against the list of accepted audiences. If the audience is not found in the list, the token is rejected. If the list is empty, any audience is accepted. If the token contains multiple audiences (array of strings), this check will make sure that at least one of the audiences in the token matches the provided list of accepted audiences.

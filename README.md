@@ -77,7 +77,7 @@ Here's a list of the configuration options that are supported:
 > [!TIP]
 > When the pre-warmed cache is active and a key is not found in it (e.g., because the OIDC provider has rotated keys), the authorizer fetches fresh keys from the JWKS endpoint and emits a structured log line with `event_type=jwks_refresh_needed`. You can use a [CloudWatch Logs subscription filter](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/SubscriptionFilters.html) to match this event and trigger an automated update of the pre-cached JWKS Lambda layer.
 
-The easiest way to create a layer is with SAM or CDK directly in your deployment stack. See the [deployment docs](./docs/deploy.md) and the [examples](./examples/) for ready-to-use snippets. For a manual approach using the AWS CLI, see [examples/jwks-lambda-layer/layer.sh](./examples/jwks-lambda-layer/layer.sh).
+For a complete guide on creating and managing the JWKS layer (SAM, CDK, and AWS CLI approaches, plus automated rotation), see [examples/jwks-lambda-layer/README.md](./examples/jwks-lambda-layer/README.md).
 
 ### LambdaLayers
 

@@ -36,5 +36,5 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
 cel-interpreter = { version = "0.10", features = ["json", "regex", "chrono"] }
 
 [dev-dependencies]
-httpmock = "0.8.2"
+httpmock = "0.8.3"
 tracing-test = "0.2.4"

@@ -364,4 +364,76 @@ mod tests {
         assert!(key_result.is_ok());
         jwks_mock.assert_calls(0);
     }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_should_pre_warm_then_refresh_on_miss_then_serve_remaining_from_cache() {
+        let rs256_jwk = include_str!("../tests/fixtures/keys/rs256/jwk.json");
+        let rs384_jwk = include_str!("../tests/fixtures/keys/rs384/jwk.json");
+        let rs512_jwk = include_str!("../tests/fixtures/keys/rs512/jwk.json");
+
+        // Mock JWKS endpoint returns all 3 keys
+        let server = MockServer::start();
+        let jwks_mock = server.mock(|when, then| {
+            when.method(GET).path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!(
+                    r#"{{"keys":[{}, {}, {}]}}"#,
+                    rs256_jwk, rs384_jwk, rs512_jwk
+                ));
+        });
+
+        // Pre-cached file contains ONLY rs256 (key1)
+        let file = NamedTempFile::new().unwrap();
+        let path = file.path().to_path_buf();
+        std::fs::write(&path, format!(r#"{{"keys":[{}]}}"#, rs256_jwk)).unwrap();
+
+        let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
+        let min_refresh_rate = Duration::try_seconds(600).unwrap();
+        let keys_cache = KeysStorage::new(jwks_uri, min_refresh_rate, Some(path));
+        assert!(keys_cache.pre_warmed);
+
+        // Step 1: key1 (rs256) — should be served from pre-warmed cache, no network call
+        let result = keys_cache.get("test/keys/rs256/public").await;
+        assert!(result.is_ok());
+        jwks_mock.assert_calls(0);
+
+        // Step 2: key2 (rs384) — cache miss, triggers network refresh
+        let result = keys_cache.get("test/keys/rs384/public").await;
+        assert!(result.is_ok());
+        jwks_mock.assert_calls(1);
+        assert!(logs_contain("jwks_refresh_needed"));
+
+        // Step 3: key3 (rs512) — should already be in cache from step 2's refresh
+        let result = keys_cache.get("test/keys/rs512/public").await;
+        assert!(result.is_ok());
+        jwks_mock.assert_calls(1); // no additional network call
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn it_should_not_emit_refresh_event_without_pre_warming() {
+        let rs256_jwk = include_str!("../tests/fixtures/keys/rs256/jwk.json");
+
+        let server = MockServer::start();
+        let jwks_mock = server.mock(|when, then| {
+            when.method(GET).path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(format!(r#"{{"keys":[{}]}}"#, rs256_jwk));
+        });
+
+        // No pre-cached file
+        let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
+        let min_refresh_rate = Duration::try_seconds(60).unwrap();
+        let keys_cache = KeysStorage::new(jwks_uri, min_refresh_rate, None);
+        assert!(!keys_cache.pre_warmed);
+
+        // Cache miss triggers network refresh, but no refresh event
+        let result = keys_cache.get("test/keys/rs256/public").await;
+        assert!(result.is_ok());
+        jwks_mock.assert_calls(1);
+        assert!(!logs_contain("jwks_refresh_needed"));
+    }
 }

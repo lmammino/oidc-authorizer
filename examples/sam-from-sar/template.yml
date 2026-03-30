@@ -18,6 +18,21 @@ Transform: AWS::Serverless-2016-10-31
 Description: AWS SAM template with a simple API definition
 
 Resources:
+  # Optional: Pre-cached JWKS layer for faster cold starts.
+  # To use this, download your JWKS file first:
+  #   mkdir -p jwks-layer && curl -o jwks-layer/jwks.json "YOUR_JWKS_URI"
+  # Then uncomment the layer resource and the LambdaLayers/JwksPreCachedFilePath lines below.
+  #
+  # JwksPreCacheLayer:
+  #   Type: AWS::Serverless::LayerVersion
+  #   Properties:
+  #     LayerName: !Sub "${AWS::StackName}-jwks-pre-cache"
+  #     Description: Pre-cached JWKS keys for faster cold starts
+  #     ContentUri: jwks-layer/
+  #     CompatibleRuntimes:
+  #       - provided.al2023
+  #     RetentionPolicy: Delete
+
   # The oidc-authorizer imported from SAR
   oidcauthorizer:
     Type: AWS::Serverless::Application
@@ -36,6 +51,9 @@ Resources:
         PrincipalIdClaims: "preferred_username, sub"
         # A CEL expression for custom token validation (optional)
         TokenValidationCel: ""
+        # Uncomment to enable pre-warmed JWKS cache (requires JwksPreCacheLayer above)
+        # LambdaLayers: !Ref JwksPreCacheLayer
+        # JwksPreCachedFilePath: "/opt/jwks.json"
         # The amount of memory (in MB) to give to the authorizer Lambda.
         LambdaMemorySize: "128"
         # The timeout to give to the authorizer Lambda.

@@ -67,7 +67,7 @@ This is an AWS Lambda authorizer for API Gateway that validates OIDC-issued JWT 
 ### Key Design Decisions
 
 - Static lifetime references (`Box::leak`) for handler dependencies to satisfy Lambda runtime requirements
-- Two-level JWKS caching - L1 (in-memory) and L2 (file-based pre-cache) for optimal cold start performance
+- Optional JWKS cache pre-warming from a file on disk (e.g., Lambda layer) for faster cold starts
 - Optimistic JWKS caching - keys refresh only on cache miss, rate-limited by `MIN_REFRESH_RATE`
 - Allow policy uses wildcard resource (`*`) to avoid cache conflicts across endpoints
 

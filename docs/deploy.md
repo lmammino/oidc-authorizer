@@ -22,6 +22,18 @@ Transform: AWS::Serverless-2016-10-31
 Description: AWS SAM template with a simple API definition
 
 Resources:
+  # Optional: Pre-cached JWKS layer for faster cold starts.
+  # Download your JWKS file: mkdir -p jwks-layer && curl -o jwks-layer/jwks.json "YOUR_JWKS_URI"
+  # Then uncomment this resource and the LambdaLayers/JwksPreCachedFilePath lines below.
+  #
+  # JwksPreCacheLayer:
+  #   Type: AWS::Serverless::LayerVersion
+  #   Properties:
+  #     LayerName: !Sub "${AWS::StackName}-jwks-pre-cache"
+  #     ContentUri: jwks-layer/
+  #     CompatibleRuntimes:
+  #       - provided.al2023
+
   # The oidc-authorizer imported from SAR
   oidcauthorizer:
     Type: AWS::Serverless::Application
@@ -37,7 +49,9 @@ Resources:
         DefaultPrincipalId: "unknown"
         JwksUri: "THE ENDPOINT OF YOUR OIDC PROVIDER JWKS"
         MinRefreshRate: "900"
-        JwksPreCachedFilePath: ""
+        # Uncomment to enable pre-warmed JWKS cache (requires JwksPreCacheLayer above)
+        # LambdaLayers: !Ref JwksPreCacheLayer
+        # JwksPreCachedFilePath: "/opt/jwks.json"
         PrincipalIdClaims: "preferred_username, sub"
         TokenValidationCel: ""
         # The amount of memory (in MB) to give to the authorizer Lambda.
@@ -71,6 +85,15 @@ The following snippet shows how to use the SAR application with CDK (using
 Typescript):
 
 ```typescript
+// Optional: Pre-cached JWKS layer for faster cold starts.
+// Download your JWKS file: mkdir -p jwks-layer && curl -o jwks-layer/jwks.json "YOUR_JWKS_URI"
+// Then uncomment the layer and the LambdaLayers/JwksPreCachedFilePath parameters below.
+//
+// const jwksPreCacheLayer = new aws_lambda.LayerVersion(this, 'JwksPreCacheLayer', {
+//   code: aws_lambda.Code.fromAsset('./jwks-layer'),
+//   compatibleRuntimes: [aws_lambda.Runtime.PROVIDED_AL2023],
+// });
+
 // import the authorizer lambda for the Serverless Application Repository
 const authorizerApp = new cdk.aws_sam.CfnApplication(this, "AuthorizerApp", {
   location: {
@@ -87,7 +110,9 @@ const authorizerApp = new cdk.aws_sam.CfnApplication(this, "AuthorizerApp", {
     JwksUri:
       "https://login.microsoftonline.com/3e4abf5a-fdc9-485c-9853-af03c4a32976/discovery/v2.0/keys",
     MinRefreshRate: "900",
-    JwksPreCachedFilePath: "",
+    // Uncomment to enable pre-warmed JWKS cache (requires jwksPreCacheLayer above)
+    // LambdaLayers: jwksPreCacheLayer.layerVersionArn,
+    // JwksPreCachedFilePath: "/opt/jwks.json",
     PrincipalIdClaims: "preferred_username, sub",
     TokenValidationCel: "",
     // The amount of memory (in MB) to give to the authorizer Lambda.

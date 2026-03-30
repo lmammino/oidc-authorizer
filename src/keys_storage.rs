@@ -2,7 +2,7 @@ use crate::keysmap::KeysMap;
 use chrono::{DateTime, Duration, Utc};
 use jsonwebtoken::{jwk::JwkSet, DecodingKey};
 use reqwest::{Client, Url};
-use std::{fs::File, io::Error, path::PathBuf, sync::Arc, time::Instant};
+use std::{fs::File, path::PathBuf, sync::Arc};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -20,9 +20,9 @@ pub enum KeysStorageError {
 pub struct KeysStorage {
     jwks_uri: Url,
     client: Client,
-    l1_cache: Arc<RwLock<(KeysMap, DateTime<Utc>)>>,
+    storage: Arc<RwLock<(KeysMap, DateTime<Utc>)>>,
     min_refresh_rate: Duration,
-    jwks_pre_cached_file_path: Option<PathBuf>,
+    pre_warmed: bool,
 }
 
 impl KeysStorage {
@@ -31,6 +31,33 @@ impl KeysStorage {
         min_refresh_rate: Duration,
         jwks_pre_cached_file_path: Option<PathBuf>,
     ) -> Self {
+        let (initial_keys, pre_warmed) = match jwks_pre_cached_file_path {
+            Some(ref path) => {
+                tracing::debug!(
+                    "Loading pre-cached JWKS from '{}'",
+                    path.as_path().display()
+                );
+                match File::open(path).and_then(|file| {
+                    serde_json::from_reader::<_, JwkSet>(file)
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+                }) {
+                    Ok(jwks) => {
+                        tracing::debug!("Pre-warmed JWKS cache with keys from file");
+                        (KeysMap::from(jwks), true)
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "Failed to load pre-cached JWKS file '{}': {}. Starting with empty cache.",
+                            path.display(),
+                            e
+                        );
+                        (KeysMap::default(), false)
+                    }
+                }
+            }
+            None => (KeysMap::default(), false),
+        };
+
         Self {
             jwks_uri,
             min_refresh_rate,
@@ -38,65 +65,39 @@ impl KeysStorage {
                 .user_agent(format!("oidc-authorizer/{}", env!("CARGO_PKG_VERSION")))
                 .build()
                 .unwrap(),
-            l1_cache: Arc::new(RwLock::new((KeysMap::default(), Default::default()))),
-            jwks_pre_cached_file_path,
+            storage: Arc::new(RwLock::new((initial_keys, Default::default()))),
+            pre_warmed,
         }
     }
 
     pub async fn get(&self, key_id: &str) -> Result<DecodingKey, KeysStorageError> {
-        let start_time = Instant::now();
-        let read_guard = self.l1_cache.read().await;
-        let maybe_key = read_guard.0.get(key_id);
-        if let Some(key) = maybe_key {
-            tracing::info!("Key found in l1_cache, took: {:?}", start_time.elapsed());
+        let read_guard = self.storage.read().await;
+        if let Some(key) = read_guard.0.get(key_id) {
             return Ok(key.clone());
         }
 
-        // Is the memory storage expired? Determine this before we muddy the memory from L2.
         let should_refresh = read_guard.1 + self.min_refresh_rate < Utc::now();
-        drop(read_guard); // so that we can write to storage.
-
-        let start_time = Instant::now();
-        let res = self.maybe_load_from_l2_cache().await;
-        if res.is_ok() {
-            let read_guard = self.l1_cache.read().await;
-            let maybe_key = read_guard.0.get(key_id);
-            if let Some(key) = maybe_key {
-                tracing::info!("Key found in l2_cache, took: {:?}", start_time.elapsed());
-                return Ok(key.clone());
-            }
-        } else {
-            tracing::error!("Failed to load cached JWKS file: {}", res.err().unwrap());
-        }
+        drop(read_guard);
 
         if should_refresh {
-            let start_time = Instant::now();
             self.refresh().await?;
-            let read_guard = self.l1_cache.read().await;
-            let maybe_key = read_guard.0.get(key_id);
-            if let Some(key) = maybe_key {
-                tracing::info!("Key found in origin JWKS, took: {:?}", start_time.elapsed());
+            let read_guard = self.storage.read().await;
+            if let Some(key) = read_guard.0.get(key_id) {
+                if self.pre_warmed {
+                    tracing::warn!(
+                        event_type = "jwks_refresh_needed",
+                        jwks_uri = %self.jwks_uri,
+                        key_id = key_id,
+                        "Pre-warmed JWKS cache miss. Keys refreshed from JWKS endpoint. \
+                         Consider updating the pre-cached JWKS file."
+                    );
+                }
                 return Ok(key.clone());
             }
             drop(read_guard);
         }
 
         Err(KeysStorageError::KeyNotFound(key_id.to_string()))
-    }
-
-    async fn maybe_load_from_l2_cache(&self) -> Result<(), Error> {
-        if self.jwks_pre_cached_file_path.is_none() {
-            tracing::debug!("Invalid JWKS pre-cache file path. Skipping cache load from disk.");
-            return Ok(());
-        }
-        let path = self.jwks_pre_cached_file_path.as_ref().unwrap();
-        tracing::debug!("Loading cached JWKS from '{}'", path.as_path().display());
-        let file = File::open(path.as_path())?;
-        let jwks: JwkSet = serde_json::from_reader(file)?;
-        let mut write_guard = self.l1_cache.write().await;
-        write_guard.0 = jwks.into();
-        write_guard.1 = write_guard.1.min(Utc::now());
-        Ok(())
     }
 
     async fn refresh(&self) -> Result<(), KeysStorageError> {
@@ -107,7 +108,7 @@ impl KeysStorage {
         tracing::debug!("JWKS fetched got body: {}", jwks);
         let jwks: JwkSet = serde_json::from_str(&jwks)?;
 
-        let mut write_guard = self.l1_cache.write().await;
+        let mut write_guard = self.storage.write().await;
         write_guard.0 = jwks.into();
         write_guard.1 = Utc::now();
         Ok(())
@@ -132,7 +133,8 @@ mod tests {
 
         assert_eq!(keys_cache.jwks_uri, jwks_uri);
         assert_eq!(keys_cache.min_refresh_rate, min_refresh_rate);
-        assert_eq!(keys_cache.l1_cache.read().await.0.len(), 0);
+        assert_eq!(keys_cache.storage.read().await.0.len(), 0);
+        assert!(!keys_cache.pre_warmed);
     }
 
     #[tokio::test]
@@ -216,7 +218,7 @@ mod tests {
 
     #[tokio::test]
     #[traced_test]
-    async fn it_should_not_error_if_the_cache_file_path_is_invalid() {
+    async fn it_should_fall_back_to_network_if_cache_file_path_is_invalid() {
         let server = MockServer::start();
         let jwks_mock = server.mock(|when, then| {
             when.method(GET)
@@ -243,8 +245,9 @@ mod tests {
         let keys_cache = KeysStorage::new(
             jwks_uri.clone(),
             min_refresh_rate,
-            Some(PathBuf::from("invalid")),
+            Some(PathBuf::from("/nonexistent/path/jwks.json")),
         );
+        assert!(!keys_cache.pre_warmed);
         let key_result = keys_cache.get("test/keys/rs256/public").await;
         assert!(key_result.is_ok());
         jwks_mock.assert();
@@ -252,7 +255,7 @@ mod tests {
 
     #[tokio::test]
     #[traced_test]
-    async fn it_should_not_return_an_error_if_the_cached_file_contains_invalid_json() {
+    async fn it_should_fall_back_to_network_if_cached_file_contains_invalid_json() {
         let server = MockServer::start();
         let jwks_mock = server.mock(|when, then| {
             when.method(GET)
@@ -276,11 +279,11 @@ mod tests {
         });
         let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
         let min_refresh_rate = Duration::try_seconds(60).unwrap();
-        let keys_cache = KeysStorage::new(
-            jwks_uri.clone(),
-            min_refresh_rate,
-            Some(PathBuf::from("{{invalid")),
-        );
+        let file = NamedTempFile::new().unwrap();
+        let path = file.path().to_path_buf();
+        std::fs::write(&path, "{{not valid json").unwrap();
+        let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate, Some(path));
+        assert!(!keys_cache.pre_warmed);
         let key_result = keys_cache.get("test/keys/rs256/public").await;
         assert!(key_result.is_ok());
         jwks_mock.assert();
@@ -288,7 +291,7 @@ mod tests {
 
     #[tokio::test]
     #[traced_test]
-    async fn it_should_handle_invalid_jwks_cached_file_by_falling_back_to_refetching_jwks() {
+    async fn it_should_fall_back_to_network_if_cached_file_has_wrong_schema() {
         let server = MockServer::start();
         let jwks_mock = server.mock(|when, then| {
             when.method(GET)
@@ -312,7 +315,7 @@ mod tests {
         });
         let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
         let file = NamedTempFile::new().unwrap();
-        let path = file.into_temp_path().to_path_buf();
+        let path = file.path().to_path_buf();
         let dynamic_json = json!({
             "something": "else",
             "array": [1, 2, 3]
@@ -320,6 +323,7 @@ mod tests {
         std::fs::write(&path, dynamic_json.to_string()).unwrap();
         let min_refresh_rate = Duration::try_seconds(60).unwrap();
         let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate, Some(path));
+        assert!(!keys_cache.pre_warmed);
         let key_result = keys_cache.get("test/keys/rs256/public").await;
         assert!(key_result.is_ok());
         jwks_mock.assert();
@@ -327,35 +331,18 @@ mod tests {
 
     #[tokio::test]
     #[traced_test]
-    async fn it_should_return_key_from_valid_jwks_cache_file() {
-        tracing::debug!("it_should_return_key_from_valid_jwks_cache_file");
+    async fn it_should_return_key_from_pre_warmed_cache_without_network_call() {
         let server = MockServer::start();
         let jwks_mock = server.mock(|when, then| {
-            when.method(GET)
-                .path("/");
+            when.method(GET).path("/");
             then.status(200)
                 .header("content-type", "application/json")
-                .body(r#"
-                    {
-                        "keys":[
-                            {
-                                "kty":"RSA",
-                                "n":"0TF4RX87dOllFp12D8IZvSoJyp8D4IZ3JmlVG7Au2GOSp1WcrAqjyq3Gk-a_1tT31FHCLVqjH9vXE8g1sXika4mp8YCWyMfjT3KsfrciI_Fw-nBCawnqewBDcBo4cvBgTjHNBjcjGNr0U_4eCZPjP8pwqw6HrRgHf-ypNmtgWG6_2EaK-tOJtnNgGRtCYGZdqMDfKLDuqzU5-gT2ejt9P1kNAvFMMUm4dTOK-vJ7jwGKWZEzupHBlHMqu4K4IRoFbVr2XsAzV5YQ0u_r26NVtQTDUdTp9ixhexUp0eXye6m3uMklqUOHJbiqNjmH2ye4yXVJI0w6BFOeXXlwyR6slw",
-                                "e":"AQAB",
-                                "alg":"RS256",
-                                "kid":"test/keys/rs256/public",
-                                "use":"sig"
-                            }
-                        ]
-                    }
-                "#);
+                .body(r#"{"keys":[]}"#);
         });
-        tracing::debug!("server setup complete");
         let jwks_uri = Url::parse(server.url("/").as_str()).unwrap();
         let file = NamedTempFile::new().unwrap();
         let path = file.path().to_path_buf();
-        tracing::debug!("path: {}", path.display());
-        let dynamic_json = json!({
+        let jwks_json = json!({
             "keys":[
                 {
                     "kty":"RSA",
@@ -367,19 +354,13 @@ mod tests {
                 }
             ]
         });
-        std::fs::write(path.clone(), dynamic_json.to_string()).unwrap();
-        tracing::debug!("file written to path: {}", path.display());
+        std::fs::write(&path, jwks_json.to_string()).unwrap();
 
         let min_refresh_rate = Duration::try_seconds(60).unwrap();
-
-        let start_time = Instant::now();
         let keys_cache = KeysStorage::new(jwks_uri.clone(), min_refresh_rate, Some(path));
-        tracing::debug!("keys_cache init took: {:?}", start_time.elapsed());
+        assert!(keys_cache.pre_warmed);
 
-        let start_time = Instant::now();
         let key_result = keys_cache.get("test/keys/rs256/public").await;
-        tracing::debug!("keys_cache get took: {:?}", start_time.elapsed());
-
         assert!(key_result.is_ok());
         jwks_mock.assert_calls(0);
     }

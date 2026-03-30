@@ -24,7 +24,7 @@ export class CdkStack extends cdk.Stack {
     const authorizerApp = new cdk.aws_sam.CfnApplication(this, 'AuthorizerApp', {
       location: {
         applicationId: 'arn:aws:serverlessrepo:eu-west-1:795006566846:applications/oidc-authorizer',
-        semanticVersion: '0.3.0' // 👀 CHANGE ME
+        semanticVersion: '0.4.0' // 👀 CHANGE ME
       },
       parameters: {
         // 👀 CHANGE THE FOLLOWING PARAMETERS

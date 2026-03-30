@@ -23,6 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: rustsec/audit-check@v1.4.1
+      - uses: rustsec/audit-check@v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          # RUSTSEC-2023-0071: rsa timing sidechannel — only affects decryption, not signature verification
+          # RUSTSEC-2024-0436: paste unmaintained — transitive dep of cel-interpreter, low risk
+          ignore: RUSTSEC-2023-0071,RUSTSEC-2024-0436

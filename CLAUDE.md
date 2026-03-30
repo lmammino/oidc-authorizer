@@ -31,6 +31,11 @@ cargo clippy -- -D warnings
 
 # Generate code coverage (requires cargo-llvm-cov)
 cargo llvm-cov --all-features --lcov --output-path lcov.info
+
+# Run security audit (requires cargo-audit)
+# RUSTSEC-2023-0071: rsa timing sidechannel — only affects decryption, not signature verification (safe to ignore)
+# RUSTSEC-2024-0436: paste unmaintained — transitive dep of cel-interpreter, low risk
+cargo audit --ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2024-0436
 ```
 
 ## Architecture

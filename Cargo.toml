@@ -16,18 +16,18 @@ license = "MIT"
 # and it will keep the alphabetic ordering for you.
 
 [dependencies]
-chrono = "0.4.31"
+chrono = "0.4.45"
 futures-util = "0.3.28"
-jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
+jsonwebtoken = { version = "11.0.0", features = ["rust_crypto"] }
 lambda_runtime = "1.0.2"
-reqwest = { version = "0.12.28", default-features = false, features = [
+reqwest = { version = "0.13.4", default-features = false, features = [
   "json",
-  "rustls-tls",
+  "rustls",
   "http2",
 ] }
 serde = "1.0.189"
 serde_json = "1.0.107"
-thiserror = "2.0.12"
+thiserror = "2.0.20"
 tokio = { version = "1", features = ["macros"] }
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = [
